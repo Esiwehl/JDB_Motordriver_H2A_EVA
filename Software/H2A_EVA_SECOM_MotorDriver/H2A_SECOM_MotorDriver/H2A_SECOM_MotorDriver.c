@@ -16,8 +16,8 @@
 #include "md_core_analog.h"
 #include "md_serial.h"
 #include "md_ticktimer.h"
-#include "md_fccomm.h"
 #include "clksys_driver.h"
+#include "md_9dof.h"
 #include "md_readbussensors.h"
 #include "DataInPrivate.h"
 #include "util.h"
@@ -31,7 +31,7 @@ static void InitIO(void);
 
 #define DEBUGPRINT_START	0
 #define DEBUGPRINT_ANALOG	1
-#define DEBUGPRINT_FC		2
+#define DEBUGPRINT_9DOF		2
 #define DEBUGPRINT_BUS		3
 #define DEBUGPRINT_DONE		4
 
@@ -51,15 +51,14 @@ int main(void)
 	InitSerial();
 	InitSlave(GetBusID());
 	InitCoreAnalog();
-	if(I_AM_H2A)
-		InitFCComm();
+	Init9DOF();
 	InitReadBussensors();
 	
 	sei();
 	
 	PrintResetHeader(&gCtrl_IO);
 	while(1) {
-		ProcessFCComm();
+		Process9DOF();
 		
 		if(CanRead_Ctrl()) {
 			switch(ReadByte_Ctrl()) {
@@ -91,27 +90,20 @@ int main(void)
 					}
 					else {
 						TakeSnapshot();
- 						if(I_AM_H2A)
- 							FCTakeSnapshot();
 						debugPrintstate = DEBUGPRINT_ANALOG;
 					}
 					break;
 				case DEBUGPRINT_ANALOG:
 					if(I_AM_H2A) {
 						PrintCSV_H2A(&gCtrl_IO);
-						debugPrintstate = DEBUGPRINT_FC;
-					}
-					else if(I_AM_EVA_M) {
-						PrintCSV_H2A(&gCtrl_IO);
-						debugPrintstate = DEBUGPRINT_BUS;
 					}
 					else {
 						PrintCSV_EVA(&gCtrl_IO);
-						debugPrintstate = DEBUGPRINT_BUS;
 					}
+					debugPrintstate = DEBUGPRINT_9DOF;
 					break;
-				case DEBUGPRINT_FC:
-					FCPrintDataCSV(&gCtrl_IO);
+				case DEBUGPRINT_9DOF:
+					PrintCSV_9DOF(&gCtrl_IO);
 					debugPrintstate = DEBUGPRINT_BUS;
 					break;
 				case DEBUGPRINT_BUS:

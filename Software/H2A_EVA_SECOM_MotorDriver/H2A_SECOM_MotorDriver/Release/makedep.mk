@@ -8,9 +8,9 @@ DataInSlave.c
 
 H2A_SECOM_MotorDriver.c
 
-md_core_analog.c
+md_9dof.c
 
-md_fccomm.c
+md_core_analog.c
 
 md_readbussensors.c
 

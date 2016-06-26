@@ -29,6 +29,7 @@ QUOTE := "
 ADDITIONAL_DEPENDENCIES:=
 OUTPUT_FILE_DEP:=
 LIB_DEP:=
+LINKER_SCRIPT_DEP:=
 
 # Every subdirectory with source files must be described here
 SUBDIRS := 
@@ -39,8 +40,8 @@ C_SRCS +=  \
 ../clksys_driver.c \
 ../DataInSlave.c \
 ../H2A_SECOM_MotorDriver.c \
+../md_9dof.c \
 ../md_core_analog.c \
-../md_fccomm.c \
 ../md_readbussensors.c \
 ../md_serial.c \
 ../md_ticktimer.c \
@@ -57,8 +58,8 @@ OBJS +=  \
 clksys_driver.o \
 DataInSlave.o \
 H2A_SECOM_MotorDriver.o \
+md_9dof.o \
 md_core_analog.o \
-md_fccomm.o \
 md_readbussensors.o \
 md_serial.o \
 md_ticktimer.o \
@@ -68,8 +69,8 @@ OBJS_AS_ARGS +=  \
 clksys_driver.o \
 DataInSlave.o \
 H2A_SECOM_MotorDriver.o \
+md_9dof.o \
 md_core_analog.o \
-md_fccomm.o \
 md_readbussensors.o \
 md_serial.o \
 md_ticktimer.o \
@@ -79,8 +80,8 @@ C_DEPS +=  \
 clksys_driver.d \
 DataInSlave.d \
 H2A_SECOM_MotorDriver.d \
+md_9dof.d \
 md_core_analog.d \
-md_fccomm.d \
 md_readbussensors.d \
 md_serial.d \
 md_ticktimer.d \
@@ -90,8 +91,8 @@ C_DEPS_AS_ARGS +=  \
 clksys_driver.d \
 DataInSlave.d \
 H2A_SECOM_MotorDriver.d \
+md_9dof.d \
 md_core_analog.d \
-md_fccomm.d \
 md_readbussensors.d \
 md_serial.d \
 md_ticktimer.d \
@@ -106,6 +107,9 @@ ADDITIONAL_DEPENDENCIES:=
 OUTPUT_FILE_DEP:= ./makedep.mk
 
 LIB_DEP+= 
+
+LINKER_SCRIPT_DEP+= 
+
 
 # AVR32/GNU C Compiler
 
@@ -130,7 +134,7 @@ LIB_DEP+=
 ./%.o: .././%.c
 	@echo Building file: $<
 	@echo Invoking: AVR/GNU C Compiler : 4.8.1
-	$(QUOTE)C:\Program Files (x86)\Atmel\Atmel Toolchain\AVR8 GCC\Native\3.4.1056\avr8-gnu-toolchain\bin\avr-gcc.exe$(QUOTE)  -x c -funsigned-char -funsigned-bitfields -Os -ffunction-sections -fdata-sections -fpack-struct -fshort-enums -g -Wall -mmcu=atxmega256a3u -c -std=gnu99 -MD -MP -MF "$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" -MT"$(@:%.o=%.o)"   -o "$@" "$<" 
+	$(QUOTE)C:\Program Files\Atmel\Atmel Toolchain\AVR8 GCC\Native\3.4.1061\avr8-gnu-toolchain\bin\avr-gcc.exe$(QUOTE)  -x c -funsigned-char -funsigned-bitfields -Os -ffunction-sections -fdata-sections -fpack-struct -fshort-enums -g -Wall -mmcu=atxmega256a3u -c -std=gnu99 -MD -MP -MF "$(@:%.o=%.d)" -MT"$(@:%.o=%.d)" -MT"$(@:%.o=%.o)"   -o "$@" "$<" 
 	@echo Finished building: $<
 	
 
@@ -156,16 +160,16 @@ endif
 # All Target
 all: $(OUTPUT_FILE_PATH) $(ADDITIONAL_DEPENDENCIES)
 
-$(OUTPUT_FILE_PATH): $(OBJS) $(USER_OBJS) $(OUTPUT_FILE_DEP) $(LIB_DEP)
+$(OUTPUT_FILE_PATH): $(OBJS) $(USER_OBJS) $(OUTPUT_FILE_DEP) $(LIB_DEP) $(LINKER_SCRIPT_DEP)
 	@echo Building target: $@
 	@echo Invoking: AVR/GNU Linker : 4.8.1
-	$(QUOTE)C:\Program Files (x86)\Atmel\Atmel Toolchain\AVR8 GCC\Native\3.4.1056\avr8-gnu-toolchain\bin\avr-gcc.exe$(QUOTE) -o$(OUTPUT_FILE_PATH_AS_ARGS) $(OBJS_AS_ARGS) $(USER_OBJS) $(LIBS) -Wl,-Map="H2A_SECOM_MotorDriver.map" -Wl,-u,vfprintf -Wl,--start-group -Wl,-lm  -Wl,--end-group -Wl,--gc-sections -mmcu=atxmega256a3u -lprintf_flt -lm  
+	$(QUOTE)C:\Program Files\Atmel\Atmel Toolchain\AVR8 GCC\Native\3.4.1061\avr8-gnu-toolchain\bin\avr-gcc.exe$(QUOTE) -o$(OUTPUT_FILE_PATH_AS_ARGS) $(OBJS_AS_ARGS) $(USER_OBJS) $(LIBS) -Wl,-Map="H2A_SECOM_MotorDriver.map" -Wl,-u,vfprintf -Wl,--start-group -Wl,-lm  -Wl,--end-group -Wl,--gc-sections -mmcu=atxmega256a3u -lprintf_flt -lm  
 	@echo Finished building target: $@
-	"C:\Program Files (x86)\Atmel\Atmel Toolchain\AVR8 GCC\Native\3.4.1056\avr8-gnu-toolchain\bin\avr-objcopy.exe" -O ihex -R .eeprom -R .fuse -R .lock -R .signature -R .user_signatures  "H2A_SECOM_MotorDriver.elf" "H2A_SECOM_MotorDriver.hex"
-	"C:\Program Files (x86)\Atmel\Atmel Toolchain\AVR8 GCC\Native\3.4.1056\avr8-gnu-toolchain\bin\avr-objcopy.exe" -j .eeprom  --set-section-flags=.eeprom=alloc,load --change-section-lma .eeprom=0  --no-change-warnings -O ihex "H2A_SECOM_MotorDriver.elf" "H2A_SECOM_MotorDriver.eep" || exit 0
-	"C:\Program Files (x86)\Atmel\Atmel Toolchain\AVR8 GCC\Native\3.4.1056\avr8-gnu-toolchain\bin\avr-objdump.exe" -h -S "H2A_SECOM_MotorDriver.elf" > "H2A_SECOM_MotorDriver.lss"
-	"C:\Program Files (x86)\Atmel\Atmel Toolchain\AVR8 GCC\Native\3.4.1056\avr8-gnu-toolchain\bin\avr-objcopy.exe" -O srec -R .eeprom -R .fuse -R .lock -R .signature -R .user_signatures "H2A_SECOM_MotorDriver.elf" "H2A_SECOM_MotorDriver.srec"
-	"C:\Program Files (x86)\Atmel\Atmel Toolchain\AVR8 GCC\Native\3.4.1056\avr8-gnu-toolchain\bin\avr-size.exe" "H2A_SECOM_MotorDriver.elf"
+	"C:\Program Files\Atmel\Atmel Toolchain\AVR8 GCC\Native\3.4.1061\avr8-gnu-toolchain\bin\avr-objcopy.exe" -O ihex -R .eeprom -R .fuse -R .lock -R .signature -R .user_signatures  "H2A_SECOM_MotorDriver.elf" "H2A_SECOM_MotorDriver.hex"
+	"C:\Program Files\Atmel\Atmel Toolchain\AVR8 GCC\Native\3.4.1061\avr8-gnu-toolchain\bin\avr-objcopy.exe" -j .eeprom  --set-section-flags=.eeprom=alloc,load --change-section-lma .eeprom=0  --no-change-warnings -O ihex "H2A_SECOM_MotorDriver.elf" "H2A_SECOM_MotorDriver.eep" || exit 0
+	"C:\Program Files\Atmel\Atmel Toolchain\AVR8 GCC\Native\3.4.1061\avr8-gnu-toolchain\bin\avr-objdump.exe" -h -S "H2A_SECOM_MotorDriver.elf" > "H2A_SECOM_MotorDriver.lss"
+	"C:\Program Files\Atmel\Atmel Toolchain\AVR8 GCC\Native\3.4.1061\avr8-gnu-toolchain\bin\avr-objcopy.exe" -O srec -R .eeprom -R .fuse -R .lock -R .signature -R .user_signatures "H2A_SECOM_MotorDriver.elf" "H2A_SECOM_MotorDriver.srec"
+	"C:\Program Files\Atmel\Atmel Toolchain\AVR8 GCC\Native\3.4.1061\avr8-gnu-toolchain\bin\avr-size.exe" "H2A_SECOM_MotorDriver.elf"
 	
 	
 
