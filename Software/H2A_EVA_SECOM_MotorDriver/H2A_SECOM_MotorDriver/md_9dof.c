@@ -81,11 +81,19 @@ void Process9DOF(void) {
 void PrintCSV_9DOF(FILE *fd) {
 	
 	// Dummy print for now. Format will be: Accel[XYZ],Magneto[XYZ],Gyro[XYZ],Temp
-	fprintf(fd, "%.3f,%.3f,%.3f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f",
+	fprintf(fd, "%.3f,%.3f,%.3f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,",
+#if 0
 		0.0,0.0,0.0,
 		0.0,0.0,0.0,
 		0.0,0.0,0.0,
-		0.0);
+		0.0
+#else
+		GyroGetAcceleration(GET_X), GyroGetAcceleration(GET_Y), GyroGetAcceleration(GET_Z),
+		GyroGetMagnetic(GET_X), GyroGetMagnetic(GET_Y), GyroGetMagnetic(GET_Z),
+		GyroGetGyro(GET_X), GyroGetGyro(GET_Y), GyroGetGyro(GET_Z),
+		GyroGetTemp()
+#endif
+		);
 	
 } /* PrintCSV_9DOF */
 
@@ -209,12 +217,12 @@ static uint16_t S9DOFRead(char Address, uint8_t bytes, uint8_t xm_or_g) {
 }
 
 
-int16_t GyroGetTemp(void) {
+float GyroGetTemp(void) {
 	int16_t data = 0;
 
 	data = (int16_t)S9DOFRead(0xC5,2,SELECT_XM);
 
-	return data;
+	return data / 8.0f;
 }
 
 
