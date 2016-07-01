@@ -42,11 +42,10 @@
 #define CC_REG_CYCLES		CYCLES_PER_SECOND /* Ticks between runs of the CC algorithm */
 #define CC_MAX_INTERVAL		(CYCLES_PER_SECOND / WHEEL_PULSE_PER_ROT) /* Do not attempt CC below ~5 km/h */
 #define CC_MAX_POWER		7
-#define CC_TURBO_BOOST		PIN3_bm
 #define CC_DEFAULT_POWER	2
 #define CC_PINS				(PIN0_bm | PIN1_bm | PIN2_bm)
 
-#define REGBRAKE_LEVEL		7
+//#define REGBRAKE_LEVEL		7
 
 #define MOTORTEMP_SCALE (40.0f / 2.4f)
 
@@ -877,10 +876,9 @@ static tCoreAnalogSensorData sSensorData;
 
 
 #define SET_CC_DRIVE(x) do { \
-	if((x) == 0) {PORTE.OUTCLR = CC_PINS | CC_TURBO_BOOST; } \
-	else if((x) == CC_MAX_POWER) { PORTE.OUTSET = CC_MAX_POWER; PORTE.OUTCLR = CC_TURBO_BOOST; } \
-	else if((x) == CC_TURBO_BOOST) { PORTE.OUTSET = CC_MAX_POWER | CC_TURBO_BOOST; } \
-	else { PORTE.OUTSET = ~(x) & CC_PINS;  PORTE.OUTCLR = CC_TURBO_BOOST | ((x) & CC_PINS); } \
+	if((x) == 0) {PORTE.OUTCLR = CC_PINS; } \
+	else if((x) == CC_MAX_POWER) { PORTE.OUTSET = CC_MAX_POWER; } \
+	else { PORTE.OUTSET = ~(x) & CC_PINS;  PORTE.OUTCLR = ((x) & CC_PINS); } \
 } while(0)
 
 static inline void ISRReadADC_H2A(void) {
@@ -1108,7 +1106,7 @@ ISR(ADCA_CH0_vect) {
 		}
 		if((sSensorData.speedSensorPulseInterval > sSensorData.ccTargetSpeed)
 			&& (sSensorData.speedSensorPulseInterval > sCCPrevPulseInterval) 
-			&& (sSensorData.ccPower < CC_TURBO_BOOST))
+			&& (sSensorData.ccPower < CC_MAX_POWER))
 				sSensorData.ccPower++;
 		else if((sSensorData.speedSensorPulseInterval < sSensorData.ccTargetSpeed)
 			&& (sSensorData.speedSensorPulseInterval < sCCPrevPulseInterval)

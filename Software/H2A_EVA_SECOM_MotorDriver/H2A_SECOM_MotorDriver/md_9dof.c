@@ -38,6 +38,25 @@
 #define GET_Y			1
 #define GET_Z			2
 
+
+// Linear Acceleration: mg per LSB
+#define LSM9DS0_ACCEL_MG_LSB_2G (0.061)
+#define LSM9DS0_ACCEL_MG_LSB_4G (0.122)
+#define LSM9DS0_ACCEL_MG_LSB_6G (0.183)
+#define LSM9DS0_ACCEL_MG_LSB_8G (0.244)
+#define LSM9DS0_ACCEL_MG_LSB_16G (0.732) // Is this right? Was expecting 0.488F
+
+// Magnetic Field Strength: gauss range
+#define LSM9DS0_MAG_MGAUSS_2GAUSS      (0.08)
+#define LSM9DS0_MAG_MGAUSS_4GAUSS      (0.16)
+#define LSM9DS0_MAG_MGAUSS_8GAUSS      (0.32)
+#define LSM9DS0_MAG_MGAUSS_12GAUSS     (0.48)
+
+// Angular Rate: dps per LSB
+#define LSM9DS0_GYRO_DPS_DIGIT_245DPS      (0.00875)
+#define LSM9DS0_GYRO_DPS_DIGIT_500DPS      (0.01750)
+#define LSM9DS0_GYRO_DPS_DIGIT_2000DPS     (0.07000)
+
 #define SENSORS_GRAVITY_EARTH	9.81
 #define GYRO_RES	0.0074770348//245/32768
 
@@ -244,7 +263,7 @@ float GyroGetMagnetic(uint8_t X_Y_Z)
 
 //if(data||0x8000)data = (~data +1)*(-1);
 
-	float return_data = (float)data / 1000;
+	float return_data = ((float)data / 1000)*LSM9DS0_MAG_MGAUSS_4GAUSS;
 
 	return return_data;
 }
@@ -268,7 +287,7 @@ float GyroGetAcceleration(uint8_t X_Y_Z) {
 
 	//if(data||0x8000)data = (~data +1)*(-1);
 
-	float return_data = ((float)data / 1000) * SENSORS_GRAVITY_EARTH;
+	float return_data = (((float)data / 1000) * SENSORS_GRAVITY_EARTH)*LSM9DS0_ACCEL_MG_LSB_4G; // factor voor
 
 	return return_data;
 }
@@ -292,8 +311,7 @@ float GyroGetGyro(uint8_t X_Y_Z) {
 
 //if(data||0x8000)data = (~data +1)*(-1);
 
-	float return_data = ((float)data)*GYRO_RES;
-//return_data = data >> 16;
+	float return_data = ((float)data)*LSM9DS0_GYRO_DPS_DIGIT_245DPS;
 
 	return return_data;
 }
