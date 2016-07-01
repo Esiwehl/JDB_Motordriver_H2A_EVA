@@ -819,7 +819,7 @@ void PrintCSV_H2A(FILE *fp) {
 		((float) sSensorDataSnapshot.selCCTimestamp / CYCLES_PER_SECOND),
 		(int16_t)sSensorDataSnapshot.ccPower,
 		sSensorDataSnapshot.ccTargetSpeed ? (H2A_WHEEL_METER_PER_PULSE * WHEEL_MS_TO_KMH * CYCLES_PER_SECOND / (sSensorDataSnapshot.ccTargetSpeed  / 65536.0f)) : 0.0f,
-		(int16_t)!!sSensorDataSnapshot.selCC2State,
+		(int16_t)!sSensorDataSnapshot.selCC2State,
 		((float) sSensorDataSnapshot.selCC2Timestamp / CYCLES_PER_SECOND));
 	
 } /* PrintCSV_H2A */
@@ -856,7 +856,7 @@ void PrintCSV_EVA(FILE *fp) {
 		((float) sSensorDataSnapshot.selCCTimestamp / CYCLES_PER_SECOND),
 		(int16_t)sSensorDataSnapshot.ccPower,
 		sSensorDataSnapshot.ccTargetSpeed ? (EVA_WHEEL_METER_PER_PULSE * WHEEL_MS_TO_KMH * CYCLES_PER_SECOND / (sSensorDataSnapshot.ccTargetSpeed  / 65536.0f)) : 0.0f,
-		(int16_t)!!sSensorDataSnapshot.selCC2State,
+		(int16_t)!sSensorDataSnapshot.selCC2State,
 		((float) sSensorDataSnapshot.selCC2Timestamp / CYCLES_PER_SECOND));
 	
 } /* PrintCSV_EVA */
