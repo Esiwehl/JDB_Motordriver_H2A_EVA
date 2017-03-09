@@ -53,7 +53,7 @@ int main(void)
 	InitCoreAnalog();
 	Init9DOF();
 	InitReadBussensors();
-	
+
 	sei();
 	
 	PrintResetHeader(&gCtrl_IO);

@@ -20,6 +20,7 @@
 #include "md_serial.h"
 #include "DataInPrivate.h"
 #include "util.h"
+#include "Timers.h"
 
 #define TIMER_PERIOD 6400 /* Number of clock cycles per timer cycle, for 5kHz at a 32MHz clock */
 

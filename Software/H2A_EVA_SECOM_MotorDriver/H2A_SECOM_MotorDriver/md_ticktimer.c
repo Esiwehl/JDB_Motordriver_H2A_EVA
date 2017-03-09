@@ -17,6 +17,7 @@
 #include <avr/interrupt.h>
 
 #include "md_ticktimer.h"
+#include "Timers.h"
 
 
 void InitTimer(void) {
