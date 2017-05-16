@@ -65,9 +65,8 @@ typedef struct {
 	int32_t fcPowerFiltered, scPowerFiltered;
 	int64_t fcEnergy, scEnergy;
 	
-	uint8_t booststate;
-	uint8_t idealDiodeState, boostState;
-	uint32_t idealDiodeTimestamp, boostTimestamp;
+	uint8_t idealDiodeState;
+	uint32_t idealDiodeTimestamp;
 			
 } tCoreAnalogH2AData;
 
@@ -91,8 +90,8 @@ typedef struct {
 	int32_t speedSensorPulseInterval;
 	uint32_t speedSensorPositivePulsesSeen;
 
-	uint8_t selFPState, selCCState, selCC2State;
-	uint32_t selFPTimestamp, selCCTimestamp, selCC2Timestamp;
+	uint8_t selFPState, selBoostState, selCCState, selCC2State;
+	uint32_t selFPTimestamp, selBoostTimestamp, selCCTimestamp, selCC2Timestamp;
 
 	uint16_t pwmFrequency, pwmDutyCycle;
 
@@ -665,6 +664,19 @@ static int GetFullPowerButtonStatus(const char *subadress, char *printbuf, int m
 } /* GetFullPowerButtonStatus */
 
 
+static int GetBoostButtonStatus(const char *subadress, char *printbuf, int maxChars) {
+	int err = 1;
+
+	if(snprintf(printbuf, maxChars, "%d,%.4f",
+			!sSensorDataSnapshot485.selBoostState, ((float) sSensorDataSnapshot485.selBoostTimestamp / CYCLES_PER_SECOND)) >= maxChars)
+		printbuf[0] = '\0';
+	else
+		err = 0;
+	
+	return err;
+} /* GetBoostButtonStatus */
+	
+
 static int GetCruiseControlButtonStatus(const char *subadress, char *printbuf, int maxChars) {
 	int err = 1;
 
@@ -731,6 +743,7 @@ static void InitCoreAnalogSensors(void) {
 			AddSlaveOwnSensor("TM01", GetMotorDriverTemp, NULL, 10);
 		
 			AddSlaveOwnSensor("SG02", GetFullPowerButtonStatus, NULL, 5);
+			AddSlaveOwnSensor("SB02", GetBoostButtonStatus, NULL, 5);
 			AddSlaveOwnSensor("SC01", GetCruiseControlButtonStatus, NULL, 5);
 		}
 	}	
@@ -791,7 +804,7 @@ void PrintCSV_H2A(FILE *fp) {
 	/* Assume the calling code has already initiated a snapshot */
 	while(!(IsSnapshotDone())) ; /* Wait for the snapshot to be taken */
 
-	fprintf(fp, ">03|02:%.4f,%.3f,%.3f,%.2f,%.0f,%.3f,%.3f,%.2f,%.0f,%.3f,%.3f,%.1f,%.0f,%.3f,%.3f,%.1f,%.0f,%.2f,%.0f,%.0f,%.3f,%.2f,%d,%.3f,%d,%.3f,%d,%.3f,%d,%.3f,%d,%.3f,",
+	fprintf(fp, ">03|02:%.4f,%.3f,%.3f,%.2f,%.0f,%.3f,%.3f,%.2f,%.0f,%.3f,%.3f,%.1f,%.0f,%.3f,%.3f,%.1f,%.0f,%.2f,%.0f,%.0f,%.3f,%.2f,%d,%.3f,%d,%.3f,%d,%.3f,njtfjy%d,%.3f,%d,%.3f,%d,%.3f,",
 		(float) sSessionCycleCountSnapshot / CYCLES_PER_SECOND,
 		sSensorDataSnapshot.adc.h2a.fcVoltageFiltered / (65536.0f * sCal.fcVoltageScale),
 		sSensorDataSnapshot.adc.h2a.fcCurrentFiltered / (65536.0f * sCal.fcCurrentScale),
@@ -818,6 +831,8 @@ void PrintCSV_H2A(FILE *fp) {
 		((float) sSensorDataSnapshot.adc.h2a.idealDiodeTimestamp / CYCLES_PER_SECOND),
 		(int16_t)!sSensorDataSnapshot.selFPState,
 		((float) sSensorDataSnapshot.selFPTimestamp / CYCLES_PER_SECOND),
+		(int16_t)sSensorDataSnapshot.selBoostState,
+		((float) sSensorDataSnapshot.selBoostTimestamp / CYCLES_PER_SECOND),
 		(int16_t)!sSensorDataSnapshot.selCCState,
 		((float) sSensorDataSnapshot.selCCTimestamp / CYCLES_PER_SECOND),
 		(int16_t)sSensorDataSnapshot.ccPower,
@@ -916,11 +931,11 @@ static inline void ISRReadADC_H2A(void) {
 	scCurrentSample = ADCB.CH1RES - sCal.scCurrentOffset;
 	FILTER32(scCurrentSample, sSensorData.adc.h2a.scCurrentFiltered);
 	
-if(sSensorData.adc.h2a.booststate != selRegenPin) {
- 	SET_CC_DRIVE(CC_TURBO_BOOST);
-	 sSensorData.adc.h2a.boostState = selRegenPin;
-	 sSensorData.adc.h2a.boostTimestamp = sSessionCycleCount;
-}
+	if(sSensorData.selBoostState != selRegenPin) {
+ 		SET_CC_DRIVE(CC_TURBO_BOOST);
+		 sSensorData.selBoostState = selRegenPin;
+		 sSensorData.selBoostTimestamp = sSessionCycleCount;
+	}
 
 	scPower = ((int32_t) scVoltageSample) * ((int32_t) scCurrentSample);
 	FILTER32PWR(scPower, sSensorData.adc.h2a.scPowerFiltered);
