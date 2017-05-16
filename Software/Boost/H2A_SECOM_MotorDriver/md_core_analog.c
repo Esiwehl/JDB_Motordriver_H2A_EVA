@@ -953,7 +953,7 @@ static inline void ISRReadADC_EVA(void) {
 	
 	int16_t motorTempFront = ADCA.CH0RES, motorTempRear, angSample, angFSSample;
 
-	//uint8_t selRegenPin = !(PORTC.IN & PIN5_bm);
+	uint8_t selRegenPin = !(PORTC.IN & PIN5_bm);
 	
 	FILTER32(motorTempFront, sSensorData.adc.eva.motorTempFrontFiltered);
 	
@@ -971,7 +971,13 @@ static inline void ISRReadADC_EVA(void) {
 	ADCB.CH1.INTFLAGS = 0x01;
 	angFSSample = ADCB.CH1RES;
 	FILTER32(angFSSample, sSensorData.adc.eva.angFSFiltered);
-
+	
+	if(sSensorData.selBoBrState != selRegenPin) {
+		SET_CC_DRIVE(CC_TURBO_BOOST);
+		sSensorData.selBoBrState = selRegenPin;
+		sSensorData.selBoBrTimestamp = sSessionCycleCount;
+	}
+	
 //	Regen braking is off for the EVA for now; pin is re-used for CC turbo boost
  	//if(sSensorData.adc.eva.regBrakeState != selRegenPin) {
  	//	SET_CC_DRIVE(REGBRAKE_LEVEL);
@@ -1024,8 +1030,8 @@ ISR(ADCA_CH0_vect) {
 			if(sSessionCycleCount - sSpeedSensorPreviousValidEdgeTimestamp < SPEEDSENSOR_MAX_INTERVAL)
 				sSpeedSensorLastValidInterval = sSessionCycleCount - sSpeedSensorPreviousValidEdgeTimestamp;
 			else
-				sSpeedSensorLastValidInterval = SPEEDSENSOR_MAX_INTERVAL;
-			sSpeedSensorPreviousValidEdgeTimestamp = sSessionCycleCount;
+				sSpeedSensorLastValidInterval = SPEEDSENSOR_MAX_INTERVAL;//validinterval
+			sSpeedSensorPreviousValidEdgeTimestamp = sSessionCycleCount;//validedge mAX
 		}
 	}
 	
