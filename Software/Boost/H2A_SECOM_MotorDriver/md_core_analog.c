@@ -89,7 +89,9 @@ typedef struct {
 	int64_t motorEnergy, inEnergy;
 	int32_t speedSensorPulseInterval;
 	uint32_t speedSensorPositivePulsesSeen;
-
+	int16_t sSpeedSensorLastValidInterval;
+	uint32_t sSpeedSensorPreviousValidEdgeTimestamp;
+	
 	uint8_t selFPState, selBoBrState, selCCState, selCC2State;
 	uint32_t selFPTimestamp, selBoBrTimestamp, selCCTimestamp, selCC2Timestamp;
 
@@ -804,7 +806,7 @@ void PrintCSV_H2A(FILE *fp) {
 	/* Assume the calling code has already initiated a snapshot */
 	while(!(IsSnapshotDone())) ; /* Wait for the snapshot to be taken */
 
-	fprintf(fp, ">03|02:%.4f,%.3f,%.3f,%.2f,%.0f,%.3f,%.3f,%.2f,%.0f,%.3f,%.3f,%.1f,%.0f,%.3f,%.3f,%.1f,%.0f,%.2f,%.0f,%.0f,%.3f,%.2f,%d,%.3f,%d,%.3f,%d,%.3f,%d,%.3f,%d,%.3f,%d,%.3f,",
+	fprintf(fp, ">03|03:%.4f,%.3f,%.3f,%.2f,%.0f,%.3f,%.3f,%.2f,%.0f,%.3f,%.3f,%.1f,%.0f,%.3f,%.3f,%.1f,%.0f,%.2f,%.0f,%.0f,%.3f,%.2f,%.3f,%.3f,%d,%.3f,%d,%.3f,%d,%.3f,%d,%.3f,%d,%.3f,%d,%.3f,",
 		(float) sSessionCycleCountSnapshot / CYCLES_PER_SECOND,
 		sSensorDataSnapshot.adc.h2a.fcVoltageFiltered / (65536.0f * sCal.fcVoltageScale),
 		sSensorDataSnapshot.adc.h2a.fcCurrentFiltered / (65536.0f * sCal.fcCurrentScale),
@@ -827,6 +829,8 @@ void PrintCSV_H2A(FILE *fp) {
 		sSensorDataSnapshot.pwmDutyCycle / (256.0f * PWM_DC_SCALE),
 		GetProcessedSpeed(sSensorDataSnapshot.speedSensorPulseInterval, H2A_WHEEL_METER_PER_PULSE),
 		sSensorDataSnapshot.speedSensorPositivePulsesSeen * H2A_WHEEL_METER_PER_PULSE,
+		(float) sSensorDataSnapshot.sSpeedSensorLastValidInterval / CYCLES_PER_SECOND,
+		(float) sSensorDataSnapshot.sSpeedSensorPreviousValidEdgeTimestamp / CYCLES_PER_SECOND,    
 		(int16_t)!!sSensorDataSnapshot.adc.h2a.idealDiodeState,
 		((float) sSensorDataSnapshot.adc.h2a.idealDiodeTimestamp / CYCLES_PER_SECOND),
 		(int16_t)!sSensorDataSnapshot.selFPState,
@@ -849,7 +853,7 @@ void PrintCSV_EVA(FILE *fp) {
 	/* Assume the calling code has already initiated a snapshot */	
 	while(!(IsSnapshotDone())) ; /* Wait for the snapshot to be taken */
 
-	fprintf(fp, ">04|04:%.4f,%.3f,%.3f,%.2f,%.2f,%.3f,%.3f,%.1f,%.0f,%.3f,%.3f,%.1f,%.0f,%.2f,%.0f,%.0f,%.3f,%.2f,%d,%.3f,%d,%.3f,%d,%.3f,%d,%.3f,",
+	fprintf(fp, ">04|05:%.4f,%.3f,%.3f,%.2f,%.2f,%.3f,%.3f,%.1f,%.0f,%.3f,%.3f,%.1f,%.0f,%.2f,%.0f,%.0f,%.3f,%.2f,%.3f,%.3f,%d,%.3f,%d,%.3f,%d,%.3f,%d,%.3f,%d,%.3f,",
 		(float) sSessionCycleCountSnapshot / CYCLES_PER_SECOND,
 		sSensorDataSnapshot.adc.eva.angSenseFiltered / (65536.0f),
 		sSensorDataSnapshot.adc.eva.angFSFiltered / (65536.0f),
@@ -868,8 +872,12 @@ void PrintCSV_EVA(FILE *fp) {
 		sSensorDataSnapshot.pwmDutyCycle / (256.0f * PWM_DC_SCALE),
 		GetProcessedSpeed(sSensorDataSnapshot.speedSensorPulseInterval, EVA_WHEEL_METER_PER_PULSE),
 		sSensorDataSnapshot.speedSensorPositivePulsesSeen * EVA_WHEEL_METER_PER_PULSE,
+		(float) sSensorDataSnapshot.sSpeedSensorLastValidInterval / CYCLES_PER_SECOND,
+		(float) sSensorDataSnapshot.sSpeedSensorPreviousValidEdgeTimestamp / CYCLES_PER_SECOND,
 		(int16_t)!sSensorDataSnapshot.selFPState,
 		((float) sSensorDataSnapshot.selFPTimestamp / CYCLES_PER_SECOND),
+		(int16_t)sSensorDataSnapshot.selBoBrState,
+		((float) sSensorDataSnapshot.selBoBrTimestamp / CYCLES_PER_SECOND),
 		(int16_t)!sSensorDataSnapshot.selCCState,
 		((float) sSensorDataSnapshot.selCCTimestamp / CYCLES_PER_SECOND),
 		(int16_t)sSensorDataSnapshot.ccPower,
@@ -908,8 +916,6 @@ static inline void ISRReadADC_H2A(void) {
 
 	uint8_t idealDiodePin = PORTE.IN & PIN4_bm;
 	
-	uint8_t selRegenPin = !(PORTC.IN & PIN5_bm);
-	
 	FILTER32(fcVoltageSample, sSensorData.adc.h2a.fcVoltageFiltered);
 	
 	while(!(ADCB.CH0.INTFLAGS & 0x01)) ; /* Should not be necessary, as ADCB.CH0 is expected to be done simultaneously with ADCA.CH0 */
@@ -930,12 +936,6 @@ static inline void ISRReadADC_H2A(void) {
 	ADCB.CH1.INTFLAGS = 0x01;
 	scCurrentSample = ADCB.CH1RES - sCal.scCurrentOffset;
 	FILTER32(scCurrentSample, sSensorData.adc.h2a.scCurrentFiltered);
-	
-	if(sSensorData.selBoBrState != selRegenPin) {
- 		SET_CC_DRIVE(CC_TURBO_BOOST);
-		 sSensorData.selBoBrState = selRegenPin;
-		 sSensorData.selBoBrTimestamp = sSessionCycleCount;
-	}
 
 	scPower = ((int32_t) scVoltageSample) * ((int32_t) scCurrentSample);
 	FILTER32PWR(scPower, sSensorData.adc.h2a.scPowerFiltered);
@@ -952,8 +952,6 @@ static inline void ISRReadADC_H2A(void) {
 static inline void ISRReadADC_EVA(void) {
 	
 	int16_t motorTempFront = ADCA.CH0RES, motorTempRear, angSample, angFSSample;
-
-	uint8_t selRegenPin = !(PORTC.IN & PIN5_bm);
 	
 	FILTER32(motorTempFront, sSensorData.adc.eva.motorTempFrontFiltered);
 	
@@ -971,12 +969,6 @@ static inline void ISRReadADC_EVA(void) {
 	ADCB.CH1.INTFLAGS = 0x01;
 	angFSSample = ADCB.CH1RES;
 	FILTER32(angFSSample, sSensorData.adc.eva.angFSFiltered);
-	
-	if(sSensorData.selBoBrState != selRegenPin) {
-		SET_CC_DRIVE(CC_TURBO_BOOST);
-		sSensorData.selBoBrState = selRegenPin;
-		sSensorData.selBoBrTimestamp = sSessionCycleCount;
-	}
 	
 //	Regen braking is off for the EVA for now; pin is re-used for CC turbo boost
  	//if(sSensorData.adc.eva.regBrakeState != selRegenPin) {
@@ -998,16 +990,17 @@ ISR(ADCA_CH0_vect) {
 	static uint8_t sCCIsOn;
 	static uint16_t sCCRunTimer;
 	
-	static int16_t sSpeedSensorLastValidInterval = SPEEDSENSOR_MAX_INTERVAL;
-	static uint32_t sSpeedSensorPreviousValidEdgeTimestamp;
+// 	static int16_t sSpeedSensorLastValidInterval = SPEEDSENSOR_MAX_INTERVAL;
+// 	static uint32_t sSpeedSensorPreviousValidEdgeTimestamp;
 	static uint8_t sSpeedSensorPreviousState, sSpeedSensorPosDeglitchCounter, sSpeedSensorNegDeglitchCounter;
 
 	static int32_t sCCPrevPulseInterval;
 
 	int16_t spRawSample, driverTempSample, motorVoltageSample, motorCurrentSample, inVoltageSample, inCurrentSample;
 	int32_t inPower, motorPower;
-	uint8_t selCCPin = PORTC.IN & PIN2_bm, selCC2Pin = PORTC.IN & PIN5_bm, selFPPin = PORTC.IN & PIN4_bm, pwmEn = !(PORTC.IN & PIN1_bm), pwm = PORTC.IN & PIN6_bm;
+	uint8_t selCCPin = PORTC.IN & PIN2_bm, selCC2Pin = PORTC.IN & PIN5_bm, selFPPin = PORTC.IN & PIN4_bm, selRegenPin = !(PORTC.IN & PIN5_bm), pwmEn = !(PORTC.IN & PIN1_bm), pwm = PORTC.IN & PIN6_bm;
 	uint8_t curPWMCycles = TCC1.CNTL;
+	sSensorData.sSpeedSensorLastValidInterval = SPEEDSENSOR_MAX_INTERVAL; 
 	
 	if(I_AM_EVA_L || I_AM_EVA_R)
 		ISRReadADC_EVA();
@@ -1027,20 +1020,20 @@ ISR(ADCA_CH0_vect) {
 		if(!sSpeedSensorPreviousState && ++sSpeedSensorPosDeglitchCounter >= SPEEDSENSOR_DEGLITCH) {
 			sSpeedSensorPreviousState = 1;
 			sSensorData.speedSensorPositivePulsesSeen++;
-			if(sSessionCycleCount - sSpeedSensorPreviousValidEdgeTimestamp < SPEEDSENSOR_MAX_INTERVAL)
-				sSpeedSensorLastValidInterval = sSessionCycleCount - sSpeedSensorPreviousValidEdgeTimestamp;
+			if(sSessionCycleCount - sSensorData.sSpeedSensorPreviousValidEdgeTimestamp < SPEEDSENSOR_MAX_INTERVAL)
+				sSensorData.sSpeedSensorLastValidInterval = sSessionCycleCount - sSensorData.sSpeedSensorPreviousValidEdgeTimestamp;
 			else
-				sSpeedSensorLastValidInterval = SPEEDSENSOR_MAX_INTERVAL;//validinterval
-			sSpeedSensorPreviousValidEdgeTimestamp = sSessionCycleCount;//validedge mAX
+				sSensorData.sSpeedSensorLastValidInterval = SPEEDSENSOR_MAX_INTERVAL;
+				sSensorData.sSpeedSensorPreviousValidEdgeTimestamp = sSessionCycleCount;
 		}
 	}
 	
-	if(sSessionCycleCount - sSpeedSensorPreviousValidEdgeTimestamp > (uint32_t) SPEEDSENSOR_MAX_INTERVAL)
-		sSpeedSensorLastValidInterval = SPEEDSENSOR_MAX_INTERVAL;
-	else if(sSessionCycleCount - sSpeedSensorPreviousValidEdgeTimestamp > (uint32_t) sSpeedSensorLastValidInterval)
-		sSpeedSensorLastValidInterval = sSessionCycleCount - sSpeedSensorPreviousValidEdgeTimestamp;
+	if(sSessionCycleCount - sSensorData.sSpeedSensorPreviousValidEdgeTimestamp > (uint32_t) SPEEDSENSOR_MAX_INTERVAL)
+		sSensorData.sSpeedSensorLastValidInterval = SPEEDSENSOR_MAX_INTERVAL;
+	else if(sSessionCycleCount - sSensorData.sSpeedSensorPreviousValidEdgeTimestamp > (uint32_t) sSensorData.sSpeedSensorLastValidInterval)
+		sSensorData.sSpeedSensorLastValidInterval = sSessionCycleCount - sSensorData.sSpeedSensorPreviousValidEdgeTimestamp;
 		
-	FILTER32(sSpeedSensorLastValidInterval, sSensorData.speedSensorPulseInterval);
+	FILTER32(sSensorData.sSpeedSensorLastValidInterval, sSensorData.speedSensorPulseInterval);
 
 	while(!(ADCB.CH2.INTFLAGS & 0x01)) ;
 	ADCB.CH2.INTFLAGS = 0x01;
@@ -1093,6 +1086,12 @@ ISR(ADCA_CH0_vect) {
 	if(sSensorData.selFPState != selFPPin) {
 		sSensorData.selFPState = selFPPin;
 		sSensorData.selFPTimestamp = sSessionCycleCount;
+	}
+	
+	if(sSensorData.selBoBrState != selRegenPin) {
+		SET_CC_DRIVE(CC_TURBO_BOOST);
+		sSensorData.selBoBrState = selRegenPin;
+		sSensorData.selBoBrTimestamp = sSessionCycleCount;
 	}
 	
 	if(sSensorData.selCCState != selCCPin) {
