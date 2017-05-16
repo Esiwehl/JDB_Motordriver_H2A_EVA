@@ -44,11 +44,12 @@
 #define CC_REG_CYCLES		CYCLES_PER_SECOND /* Ticks between runs of the CC algorithm */
 #define H2A_CC_MAX_INTERVAL	(CYCLES_PER_SECOND / H2A_WHEEL_PULSE_PER_ROT) /* Do not attempt CC below ~5 km/h */
 #define EVA_CC_MAX_INTERVAL	(CYCLES_PER_SECOND / EVA_WHEEL_PULSE_PER_ROT) /* Do not attempt CC below ~5 km/h */
-#define CC_MAX_POWER		7								//7 beter dan 1
+#define CC_MAX_POWER		7							//7 beter dan 1
+#define REGBRAKE_LEVEL		1							
 #define CC_DEFAULT_POWER	2
 #define CC_PINS				(PIN0_bm | PIN1_bm | PIN2_bm)
+#define REGBRAKE_PIN		PIN3_bm
 
-#define REGBRAKE_LEVEL		7
 
 #define MOTORTEMP_SCALE (40.0f / 2.4f)
 
@@ -74,7 +75,6 @@ typedef struct {
 
 	int32_t motorTempFrontFiltered, motorTempRearFiltered;
 	int32_t angSenseFiltered, angFSFiltered;
-	uint32_t regBrakeState, regBrakeTimestamp;
 	
 } tCoreAnalogEVAData;
 
@@ -91,8 +91,8 @@ typedef struct {
 	int32_t speedSensorPulseInterval;
 	uint32_t speedSensorPositivePulsesSeen;
 
-	uint8_t selFPState, selCCState, selCC2State;
-	uint32_t selFPTimestamp, selCCTimestamp, selCC2Timestamp;
+	uint8_t selFPState, selBoBrState, selCCState, selCC2State;
+	uint32_t selFPTimestamp, selBoBrTimestamp, selCCTimestamp, selCC2Timestamp;
 
 	uint16_t pwmFrequency, pwmDutyCycle;
 
@@ -665,6 +665,19 @@ static int GetFullPowerButtonStatus(const char *subadress, char *printbuf, int m
 } /* GetFullPowerButtonStatus */
 
 
+static int GetBoBrButtonStatus(const char *subadress, char *printbuf, int maxChars) {
+	int err = 1;
+
+	if(snprintf(printbuf, maxChars, "%d,%.4f",
+	!sSensorDataSnapshot485.selBoBrState, ((float) sSensorDataSnapshot485.selBoBrTimestamp / CYCLES_PER_SECOND)) >= maxChars)
+	printbuf[0] = '\0';
+	else
+	err = 0;
+	
+	return err;
+	} /* GetBoBrButtonStatus */
+
+
 static int GetCruiseControlButtonStatus(const char *subadress, char *printbuf, int maxChars) {
 	int err = 1;
 
@@ -700,12 +713,13 @@ static void InitCoreAnalogSensors(void) {
 	
 		AddSlaveOwnSensor(I_AM_EVA_L ? "VM01" : "VM02", GetMotorVoltage, NULL, 1);		
 		AddSlaveOwnSensor(I_AM_EVA_L ? "CM01" : "CM02", GetMotorCurrent, NULL, 1);
-//		AddSlaveOwnSensor(IS_EVA_LEFT ? "TM01" : "TM02", GetMotorDriverTemp, NULL, 10);
+//		AddSlaveOwnSensor(I_AM_EVA_L ? "TM01" : "TM02", GetMotorDriverTemp, NULL, 10);
 	
-//		AddSlaveOwnSensor(IS_EVA_LEFT ? "TS01" : "TS02", GetTimeSnapshot, NULL, 1);
+//		AddSlaveOwnSensor(I_AM_EVA_L ? "TS01" : "TS02", GetTimeSnapshot, NULL, 1);
 	
-//		AddSlaveOwnSensor(IS_EVA_LEFT ? "SG02" : "SG03", GetFullPowerButtonStatus, NULL, 5);
-//		AddSlaveOwnSensor(IS_EVA_LEFT ? "SC01" : "SC02", GetCruiseControlButtonStatus, NULL, 5);
+//		AddSlaveOwnSensor(I_AM_EVA_L ? "SG02" : "SG03", GetFullPowerButtonStatus, NULL, 5);
+//		AddSlaveOwnSensor(I_AM_EVA_L ? "SB02" : "SB03", GetBoBrButtonStatus, NULL, 5);
+//		AddSlaveOwnSensor(I_AM_EVA_L ? "SC01" : "SC02", GetCruiseControlButtonStatus, NULL, 5);
 	}
 	else { /* H2A */
 		
@@ -834,7 +848,7 @@ void PrintCSV_EVA(FILE *fp) {
 	/* Assume the calling code has already initiated a snapshot */	
 	while(!(IsSnapshotDone())) ; /* Wait for the snapshot to be taken */
 
-	fprintf(fp, ">04|04:%.4f,%.3f,%.3f,%.2f,%.2f,%.3f,%.3f,%.1f,%.0f,%.3f,%.3f,%.1f,%.0f,%.2f,%.0f,%.0f,%.3f,%.2f,%d,%.3f,%d,%.3f,%d,%.3f,%d,%.3f,",
+	fprintf(fp, ">04|04:%.4f,%.3f,%.3f,%.2f,%.2f,%.3f,%.3f,%.1f,%.0f,%.3f,%.3f,%.1f,%.0f,%.2f,%.0f,%.0f,%.3f,%.2f,%d,%.3f,%d,%.3f,%d,%.3f,%d,%.3f,%d,%.3f,",
 		(float) sSessionCycleCountSnapshot / CYCLES_PER_SECOND,
 		sSensorDataSnapshot.adc.eva.angSenseFiltered / (65536.0f),
 		sSensorDataSnapshot.adc.eva.angFSFiltered / (65536.0f),
@@ -855,6 +869,8 @@ void PrintCSV_EVA(FILE *fp) {
 		sSensorDataSnapshot.speedSensorPositivePulsesSeen * EVA_WHEEL_METER_PER_PULSE,
 		(int16_t)!sSensorDataSnapshot.selFPState,
 		((float) sSensorDataSnapshot.selFPTimestamp / CYCLES_PER_SECOND),
+		(int16_t)sSensorDataSnapshot.selBoBrState,
+		((float) sSensorDataSnapshot.selBoBrTimestamp / CYCLES_PER_SECOND),
 		(int16_t)!sSensorDataSnapshot.selCCState,
 		((float) sSensorDataSnapshot.selCCTimestamp / CYCLES_PER_SECOND),
 		(int16_t)sSensorDataSnapshot.ccPower,
@@ -880,9 +896,10 @@ static tCoreAnalogSensorData sSensorData;
 
 
 #define SET_CC_DRIVE(x) do { \
-	if((x) == 0) {PORTE.OUTCLR = CC_PINS; } \
+	if((x) == 0) {PORTE.OUTCLR = CC_PINS | REGBRAKE_PIN; } \
 	else if((x) == CC_MAX_POWER) { PORTE.OUTSET = CC_MAX_POWER; } \
-	else { PORTE.OUTSET = ~(x) & CC_PINS;  PORTE.OUTCLR = ((x) & CC_PINS); } \
+	else if((x) == REGBRAKE_LEVEL) { PORTE.OUTSET = REGBRAKE_PIN;} \
+	else { PORTE.OUTSET = ~(x) & CC_PINS;  PORTE.OUTCLR = REGBRAKE_PIN | ((x) & CC_PINS); } \
 } while(0)
 
 static inline void ISRReadADC_H2A(void) {
@@ -948,11 +965,10 @@ static inline void ISRReadADC_EVA(void) {
 	angFSSample = ADCB.CH1RES;
 	FILTER32(angFSSample, sSensorData.adc.eva.angFSFiltered);
 
-	if(sSensorData.adc.eva.regBrakeState != selRegenPin) {
+	if(sSensorData.selBoBrState != selRegenPin) {
 		SET_CC_DRIVE(REGBRAKE_LEVEL);
-		PORTE.OUTSET = PIN3_bm;
-		sSensorData.adc.eva.regBrakeState = selRegenPin;
-		sSensorData.adc.eva.regBrakeTimestamp = sSessionCycleCount;
+		sSensorData.selBoBrState = selRegenPin;
+		sSensorData.selBoBrTimestamp = sSessionCycleCount;
 }
 	
 } /* ISRReadADC_EVA */
