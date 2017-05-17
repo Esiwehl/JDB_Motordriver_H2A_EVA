@@ -92,8 +92,8 @@ typedef struct {
 	int16_t sSpeedSensorLastValidInterval;
 	uint32_t sSpeedSensorPreviousValidEdgeTimestamp;
 	
-	uint8_t selFPState, selBoBrState, selCCState, selCC2State;
-	uint32_t selFPTimestamp, selBoBrTimestamp, selCCTimestamp, selCC2Timestamp;
+	uint8_t selFPState, selCCState, selCC2State;
+	uint32_t selFPTimestamp, selCCTimestamp, selCC2Timestamp;
 
 	uint16_t pwmFrequency, pwmDutyCycle;
 
@@ -664,19 +664,6 @@ static int GetFullPowerButtonStatus(const char *subadress, char *printbuf, int m
 	
 	return err;
 } /* GetFullPowerButtonStatus */
-
-
-static int GetBoBrButtonStatus(const char *subadress, char *printbuf, int maxChars) {
-	int err = 1;
-
-	if(snprintf(printbuf, maxChars, "%d,%.4f",
-			!sSensorDataSnapshot485.selBoBrState, ((float) sSensorDataSnapshot485.selBoBrTimestamp / CYCLES_PER_SECOND)) >= maxChars)
-		printbuf[0] = '\0';
-	else
-		err = 0;
-	
-	return err;
-} /* GetBoBrButtonStatus */
 	
 
 static int GetCruiseControlButtonStatus(const char *subadress, char *printbuf, int maxChars) {
@@ -745,7 +732,6 @@ static void InitCoreAnalogSensors(void) {
 			AddSlaveOwnSensor("TM01", GetMotorDriverTemp, NULL, 10);
 		
 			AddSlaveOwnSensor("SG02", GetFullPowerButtonStatus, NULL, 5);
-			AddSlaveOwnSensor("SB02", GetBoBrButtonStatus, NULL, 5);
 			AddSlaveOwnSensor("SC01", GetCruiseControlButtonStatus, NULL, 5);
 		}
 	}	
@@ -806,7 +792,7 @@ void PrintCSV_H2A(FILE *fp) {
 	/* Assume the calling code has already initiated a snapshot */
 	while(!(IsSnapshotDone())) ; /* Wait for the snapshot to be taken */
 
-	fprintf(fp, ">03|03:%.4f,%.3f,%.3f,%.2f,%.0f,%.3f,%.3f,%.2f,%.0f,%.3f,%.3f,%.1f,%.0f,%.3f,%.3f,%.1f,%.0f,%.2f,%.0f,%.0f,%.3f,%.2f,%.3f,%.3f,%d,%.3f,%d,%.3f,%d,%.3f,%d,%.3f,%d,%.3f,%d,%.3f,",
+	fprintf(fp, ">03|03:%.4f,%.3f,%.3f,%.2f,%.0f,%.3f,%.3f,%.2f,%.0f,%.3f,%.3f,%.1f,%.0f,%.3f,%.3f,%.1f,%.0f,%.2f,%.0f,%.0f,%.3f,%.2f,%.3f,%.3f,%d,%.3f,%d,%.3f,%d,%.3f,%d,%.3f,%d,%.3f,",
 		(float) sSessionCycleCountSnapshot / CYCLES_PER_SECOND,
 		sSensorDataSnapshot.adc.h2a.fcVoltageFiltered / (65536.0f * sCal.fcVoltageScale),
 		sSensorDataSnapshot.adc.h2a.fcCurrentFiltered / (65536.0f * sCal.fcCurrentScale),
@@ -835,8 +821,6 @@ void PrintCSV_H2A(FILE *fp) {
 		((float) sSensorDataSnapshot.adc.h2a.idealDiodeTimestamp / CYCLES_PER_SECOND),
 		(int16_t)!sSensorDataSnapshot.selFPState,
 		((float) sSensorDataSnapshot.selFPTimestamp / CYCLES_PER_SECOND),
-		(int16_t)sSensorDataSnapshot.selBoBrState,
-		((float) sSensorDataSnapshot.selBoBrTimestamp / CYCLES_PER_SECOND),
 		(int16_t)!sSensorDataSnapshot.selCCState,
 		((float) sSensorDataSnapshot.selCCTimestamp / CYCLES_PER_SECOND),
 		(int16_t)sSensorDataSnapshot.ccPower,
@@ -853,7 +837,7 @@ void PrintCSV_EVA(FILE *fp) {
 	/* Assume the calling code has already initiated a snapshot */	
 	while(!(IsSnapshotDone())) ; /* Wait for the snapshot to be taken */
 
-	fprintf(fp, ">04|05:%.4f,%.3f,%.3f,%.2f,%.2f,%.3f,%.3f,%.1f,%.0f,%.3f,%.3f,%.1f,%.0f,%.2f,%.0f,%.0f,%.3f,%.2f,%.3f,%.3f,%d,%.3f,%d,%.3f,%d,%.3f,%d,%.3f,%d,%.3f,",
+	fprintf(fp, ">04|05:%.4f,%.3f,%.3f,%.2f,%.2f,%.3f,%.3f,%.1f,%.0f,%.3f,%.3f,%.1f,%.0f,%.2f,%.0f,%.0f,%.3f,%.2f,%.3f,%.3f,%d,%.3f,%d,%.3f,%d,%.3f,%d,%.3f,",
 		(float) sSessionCycleCountSnapshot / CYCLES_PER_SECOND,
 		sSensorDataSnapshot.adc.eva.angSenseFiltered / (65536.0f),
 		sSensorDataSnapshot.adc.eva.angFSFiltered / (65536.0f),
@@ -876,8 +860,6 @@ void PrintCSV_EVA(FILE *fp) {
 		(float) sSensorDataSnapshot.sSpeedSensorPreviousValidEdgeTimestamp / CYCLES_PER_SECOND,
 		(int16_t)!sSensorDataSnapshot.selFPState,
 		((float) sSensorDataSnapshot.selFPTimestamp / CYCLES_PER_SECOND),
-		(int16_t)sSensorDataSnapshot.selBoBrState,
-		((float) sSensorDataSnapshot.selBoBrTimestamp / CYCLES_PER_SECOND),
 		(int16_t)!sSensorDataSnapshot.selCCState,
 		((float) sSensorDataSnapshot.selCCTimestamp / CYCLES_PER_SECOND),
 		(int16_t)sSensorDataSnapshot.ccPower,
@@ -998,7 +980,7 @@ ISR(ADCA_CH0_vect) {
 
 	int16_t spRawSample, driverTempSample, motorVoltageSample, motorCurrentSample, inVoltageSample, inCurrentSample;
 	int32_t inPower, motorPower;
-	uint8_t selCCPin = PORTC.IN & PIN2_bm, selCC2Pin = PORTC.IN & PIN5_bm, selFPPin = PORTC.IN & PIN4_bm, selRegenPin = !(PORTC.IN & PIN5_bm), pwmEn = !(PORTC.IN & PIN1_bm), pwm = PORTC.IN & PIN6_bm;
+	uint8_t selCCPin = PORTC.IN & PIN2_bm, selCC2Pin = PORTC.IN & PIN5_bm, selFPPin = PORTC.IN & PIN4_bm, pwmEn = !(PORTC.IN & PIN1_bm), pwm = PORTC.IN & PIN6_bm;
 	uint8_t curPWMCycles = TCC1.CNTL;
 	sSensorData.sSpeedSensorLastValidInterval = SPEEDSENSOR_MAX_INTERVAL; 
 	
@@ -1088,12 +1070,6 @@ ISR(ADCA_CH0_vect) {
 		sSensorData.selFPTimestamp = sSessionCycleCount;
 	}
 	
-	if(sSensorData.selBoBrState != selRegenPin) {
-		SET_CC_DRIVE(CC_TURBO_BOOST);
-		sSensorData.selBoBrState = selRegenPin;
-		sSensorData.selBoBrTimestamp = sSessionCycleCount;
-	}
-	
 	if(sSensorData.selCCState != selCCPin) {
 		sSensorData.selCCState = selCCPin;
 		sSensorData.selCCTimestamp = sSessionCycleCount;
@@ -1139,8 +1115,7 @@ ISR(ADCA_CH0_vect) {
 		}
 		if((sSensorData.speedSensorPulseInterval > sSensorData.ccTargetSpeed)
 			&& (sSensorData.speedSensorPulseInterval > sCCPrevPulseInterval)
-			&& (sSensorData.ccPower < CC_TURBO_BOOST) 
-			&& (sSensorData.ccPower < CC_MAX_POWER))
+			&& (sSensorData.ccPower < (!selCC2Pin ? CC_TURBO_BOOST : CC_MAX_POWER)))
 				sSensorData.ccPower++;
 		else if((sSensorData.speedSensorPulseInterval < sSensorData.ccTargetSpeed)
 			&& (sSensorData.speedSensorPulseInterval < sCCPrevPulseInterval)
