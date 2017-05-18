@@ -121,7 +121,7 @@ int main(void)
 			PORTF.OUTCLR = PIN4_bm | PIN5_bm;
 		else
 			PORTF.OUTSET = PIN4_bm | PIN5_bm;
-		if ( ReadLineRS45( slaveData ) == 1 ){
+		if ( ReadLineRS485( slaveData ) == 1 ){
 			ScanDataInSlave(slaveData);
 		}
 	}

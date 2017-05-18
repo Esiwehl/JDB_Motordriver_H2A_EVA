@@ -396,7 +396,7 @@ void SendLineRS485(char* data){
  *
  */
 
-uint8_t ReadLineRS45( char *Data ){
+uint8_t ReadLineRS485( char *Data ){
 	static char getKarakter;
 	uint8_t len, returnValue = 0;
 

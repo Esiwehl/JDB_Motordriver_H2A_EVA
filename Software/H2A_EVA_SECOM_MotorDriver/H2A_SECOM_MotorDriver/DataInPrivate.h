@@ -35,7 +35,7 @@ void InitRS485();
 void GetData();
 void InitSlave (int adr);
 void SendLineRS485(char* data);
-uint8_t ReadLineRS45( char *Data );
+uint8_t ReadLineRS485( char *Data );
 
 
 
