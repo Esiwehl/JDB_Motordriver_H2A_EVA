@@ -2,3 +2,4 @@ om 20A minimum en 30A maximum te rijden.
 
 R9 = 6k2 ohm
 R2H = 47k ohm
+R76 en R77 = 2k2 ohm voor stroommeting van ongeveer 30A 
