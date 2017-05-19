@@ -24,7 +24,7 @@
 #define TIMER_PERIOD 6400 /* Number of clock cycles per timer cycle, for 5kHz at a 32MHz clock */
 
 #define SPEEDSENSOR_MIDWAY_VAL		727 /* Calculated offset for a point halfway the expected sensor input extremes */
-#define SPEEDSENSOR_DEGLITCH		(CYCLES_PER_SECOND / 1000)	/* Number of valid over-threshold values that need to be seen before an edge is recognized */
+#define SPEEDSENSOR_DEGLITCH		(CYCLES_PER_SECOND / 2000)	/* Number of valid over-threshold values that need to be seen before an edge is recognized */
 #define SPEEDSENSOR_MAX_INTERVAL	(CYCLES_PER_SECOND / 3)	/* Max time between edges before we assume we're standing still */
 #define SPEEDSENSOR_MIN_SPEED		1.0f /* Below this speed in km/h we report to be standing still */
 
