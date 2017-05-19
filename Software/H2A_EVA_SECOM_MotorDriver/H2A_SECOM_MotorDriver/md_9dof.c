@@ -61,10 +61,6 @@
 #define GYRO_RES	0.0074770348//245/32768
 
 
-static void S9DOFWrite(char Address, char Data, uint8_t xm_or_g);
-static uint16_t S9DOFRead(char Address, uint8_t bytes, uint8_t xm_or_g);
-
-
 void Init9DOF(void) {
 	
 	SDA_POORT.DIRSET	=	SDA;
@@ -117,48 +113,36 @@ void PrintCSV_9DOF(FILE *fd) {
 } /* PrintCSV_9DOF */
 
 
-static void S9DOFWrite(char Address, char Data, uint8_t xm_or_g) {
+void S9DOFWrite(char Address, char Data, uint8_t xm_or_g) {
 	uint8_t bit = 0, i;
 
-	if (xm_or_g == SELECT_G)
-		CS_G_POORT.OUTCLR = CS_G;
-	else 
-		CS_XM_POORT.OUTCLR = CS_XM;
+	if (xm_or_g == SELECT_G)CS_G_POORT.OUTCLR = CS_G;
+	else CS_XM_POORT.OUTCLR = CS_XM;
 
 	for(i = 0; i < 8; i++) {
+		SCL_POORT.OUTCLR = SCL;
 		bit = ((Address << i) & 0x80);
-		if (bit) {
-			SDA_POORT.OUTSET = SDA;
-		}
-		else {
-			SDA_POORT.OUTCLR = SDA;
-		}
-		SCL_POORT.OUTCLR = SCL;
+		if (bit) {SDA_POORT.OUTSET = SDA;}
+		else {SDA_POORT.OUTCLR = SDA;}
 		SCL_POORT.OUTSET = SCL;
 	}
 
 
 	for(i = 0; i < 8; i++) {
-		bit = ((Data << i) & 0x80);
-		if (bit) {
-			SDA_POORT.OUTSET = SDA;
-		}
-		else {
-			SDA_POORT.OUTCLR = SDA;
-		}
 		SCL_POORT.OUTCLR = SCL;
+		bit = ((Data << i) & 0x80);
+		if (bit) {SDA_POORT.OUTSET = SDA;}
+		else {SDA_POORT.OUTCLR = SDA;}
 		SCL_POORT.OUTSET = SCL;
 	}
 
-	if (xm_or_g == SELECT_G)
-		CS_G_POORT.OUTSET = CS_G;
-	else 
-		CS_XM_POORT.OUTSET = CS_XM;
+	if (xm_or_g == SELECT_G)CS_G_POORT.OUTSET = CS_G;
+	else CS_XM_POORT.OUTSET = CS_XM;
 		
 } /* S9DOFWrite */
 
 
-static uint16_t S9DOFRead(char Address, uint8_t bytes, uint8_t xm_or_g) {
+uint16_t S9DOFRead(char Address, uint8_t bytes, uint8_t xm_or_g) {
 	uint8_t bit, i;
 	int8_t bitG = 0;
 	int8_t bitXM = 0;
@@ -188,20 +172,15 @@ static uint16_t S9DOFRead(char Address, uint8_t bytes, uint8_t xm_or_g) {
 
 	for(i = 0; i < 8; i++) {
 		SCL_POORT.OUTCLR = SCL;
-
-		if(SDO_G_POORT.IN & SDO_G)
-			bitG = 1;
-		else 
-			bitG = 0;
+		SCL_POORT.OUTSET = SCL;
+		
+		if(SDO_G_POORT.IN & SDO_G)bitG = 1;
+		else bitG = 0;
 		byteGyroG = ((byteGyroG&0x7F)<<1)|bitG;
 
-		if(SDO_XM_POORT.IN & SDO_XM)
-			bitXM = 1;
-		else
-			bitXM = 0;
+		if(SDO_XM_POORT.IN & SDO_XM)bitXM = 1;
+		else bitXM = 0;
 		byteGyroXM = ((byteGyroXM&0x7F)<<1)|bitXM;
-
-		SCL_POORT.OUTSET = SCL;
 	}
 
 	if(bytes>1) {
