@@ -61,6 +61,9 @@
 #define GYRO_RES	0.0074770348//245/32768
 
 
+static void S9DOFWrite(char Address, char Data, uint8_t xm_or_g);
+static uint16_t S9DOFRead(char Address, uint8_t bytes, uint8_t xm_or_g);
+
 void Init9DOF(void) {
 	
 	SDA_POORT.DIRSET	=	SDA;
@@ -97,33 +100,29 @@ void PrintCSV_9DOF(FILE *fd) {
 	
 	// Dummy print for now. Format will be: Accel[XYZ],Magneto[XYZ],Gyro[XYZ],Temp
 	fprintf(fd, "%.3f,%.3f,%.3f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,",
-#if 0
-		0.0,0.0,0.0,
-		0.0,0.0,0.0,
-		0.0,0.0,0.0,
-		0.0
-#else
 		GyroGetAcceleration(GET_X), GyroGetAcceleration(GET_Y), GyroGetAcceleration(GET_Z),
 		GyroGetMagnetic(GET_X), GyroGetMagnetic(GET_Y), GyroGetMagnetic(GET_Z),
 		GyroGetGyro(GET_X), GyroGetGyro(GET_Y), GyroGetGyro(GET_Z),
-		GyroGetTemp()
-#endif
-		);
+		GyroGetTemp());
 	
 } /* PrintCSV_9DOF */
 
 
-void S9DOFWrite(char Address, char Data, uint8_t xm_or_g) {
+static void S9DOFWrite(char Address, char Data, uint8_t xm_or_g) {
 	uint8_t bit = 0, i;
 
-	if (xm_or_g == SELECT_G)CS_G_POORT.OUTCLR = CS_G;
-	else CS_XM_POORT.OUTCLR = CS_XM;
+	if (xm_or_g == SELECT_G)
+		CS_G_POORT.OUTCLR = CS_G;
+	else 
+		CS_XM_POORT.OUTCLR = CS_XM;
 
 	for(i = 0; i < 8; i++) {
 		SCL_POORT.OUTCLR = SCL;
 		bit = ((Address << i) & 0x80);
-		if (bit) {SDA_POORT.OUTSET = SDA;}
-		else {SDA_POORT.OUTCLR = SDA;}
+		if (bit) 
+			SDA_POORT.OUTSET = SDA;
+		else 
+			SDA_POORT.OUTCLR = SDA;
 		SCL_POORT.OUTSET = SCL;
 	}
 
@@ -131,13 +130,17 @@ void S9DOFWrite(char Address, char Data, uint8_t xm_or_g) {
 	for(i = 0; i < 8; i++) {
 		SCL_POORT.OUTCLR = SCL;
 		bit = ((Data << i) & 0x80);
-		if (bit) {SDA_POORT.OUTSET = SDA;}
-		else {SDA_POORT.OUTCLR = SDA;}
+		if (bit)
+			SDA_POORT.OUTSET = SDA;
+		else 
+			SDA_POORT.OUTCLR = SDA;
 		SCL_POORT.OUTSET = SCL;
 	}
 
-	if (xm_or_g == SELECT_G)CS_G_POORT.OUTSET = CS_G;
-	else CS_XM_POORT.OUTSET = CS_XM;
+	if (xm_or_g == SELECT_G)
+		CS_G_POORT.OUTSET = CS_G;
+	else 
+		CS_XM_POORT.OUTSET = CS_XM;
 		
 } /* S9DOFWrite */
 
@@ -159,12 +162,10 @@ uint16_t S9DOFRead(char Address, uint8_t bytes, uint8_t xm_or_g) {
 
 	for(i = 0; i < 8; i++) {
 		bit = !!((Address << i) & 0x80);
-		if (bit) {
+		if (bit)
 			SDA_POORT.OUTSET = SDA;
-		}
-		else {
+		else
 			SDA_POORT.OUTCLR = SDA;
-		}
 		SCL_POORT.OUTCLR = SCL;
 		SCL_POORT.OUTSET = SCL;
 	}
@@ -174,21 +175,27 @@ uint16_t S9DOFRead(char Address, uint8_t bytes, uint8_t xm_or_g) {
 		SCL_POORT.OUTCLR = SCL;
 		SCL_POORT.OUTSET = SCL;
 		
-		if(SDO_G_POORT.IN & SDO_G)bitG = 1;
-		else bitG = 0;
+		if(SDO_G_POORT.IN & SDO_G)
+			bitG = 1;
+		else 
+			bitG = 0;
 		byteGyroG = ((byteGyroG&0x7F)<<1)|bitG;
 
-		if(SDO_XM_POORT.IN & SDO_XM)bitXM = 1;
-		else bitXM = 0;
-		byteGyroXM = ((byteGyroXM&0x7F)<<1)|bitXM;
+		if(SDO_XM_POORT.IN & SDO_XM)
+			bitXM = 1;
+		else
+			bitXM = 0;
+		byteGyroXM = ((byteGyroXM&0x7F)<<1) | bitXM;
 	}
 
 	if(bytes>1) {
 		for(int count = 0; count < 8; count++) {
 			SCL_POORT.OUTCLR = SCL;
 
-			if(SDO_G_POORT.IN & SDO_G)	bitG = 1;
-			else bitG = 0;
+			if(SDO_G_POORT.IN & SDO_G)
+				bitG = 1;
+			else
+				bitG = 0;
 			byte2GyroG = ((byte2GyroG&0x7F)<<1)|bitG;
 
 			if(SDO_XM_POORT.IN & SDO_XM)
@@ -252,17 +259,11 @@ float GyroGetAcceleration(uint8_t X_Y_Z) {
 	int16_t data = 0;
 	
 	if (X_Y_Z == GET_X)
-	{
 		data = (int16_t) S9DOFRead(0xE8,2,SELECT_XM);
-	}
 	if (X_Y_Z == GET_Y)
-	{
 		data = (int16_t) S9DOFRead(0xEA,2,SELECT_XM);
-	}
 	if (X_Y_Z == GET_Z)
-	{
 		data = (int16_t) S9DOFRead(0xEC,2,SELECT_XM);
-	}
 
 	//if(data||0x8000)data = (~data +1)*(-1);
 
@@ -276,17 +277,11 @@ float GyroGetGyro(uint8_t X_Y_Z) {
 	int16_t data = 0;
 
 	if (X_Y_Z == GET_X)
-	{
 		data = (int16_t) S9DOFRead(0x68,2,SELECT_G);
-	}
 	if (X_Y_Z == GET_Y)
-	{
 		data = (int16_t) S9DOFRead(0x6A,2,SELECT_G);
-	}
 	if (X_Y_Z == GET_Z)
-	{
 		data = (int16_t) S9DOFRead(0x6C,2,SELECT_G);
-	}
 
 //if(data||0x8000)data = (~data +1)*(-1);
 
