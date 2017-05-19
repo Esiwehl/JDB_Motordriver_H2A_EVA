@@ -44,8 +44,9 @@
 #define H2A_CC_MAX_INTERVAL	(CYCLES_PER_SECOND / H2A_WHEEL_PULSE_PER_ROT) /* Do not attempt CC below ~5 km/h */
 #define EVA_CC_MAX_INTERVAL	(CYCLES_PER_SECOND / EVA_WHEEL_PULSE_PER_ROT) /* Do not attempt CC below ~5 km/h */
 #define CC_MAX_POWER		7
-#define CC_TURBO_BOOST		PIN3_bm
+#define CC_TURBO_BOOST		8
 #define CC_DEFAULT_POWER	2
+#define CC_BOOST_PIN		PIN3_bm
 #define CC_PINS				(PIN0_bm | PIN1_bm | PIN2_bm)
 
 #define MOTORTEMP_SCALE (40.0f / 2.4f)
@@ -881,10 +882,10 @@ static tCoreAnalogSensorData sSensorData = { .speedSensorLastValidInterval = SPE
 
 
 #define SET_CC_DRIVE(x) do { \
-	if((x) == 0) { PORTE.OUTCLR = CC_PINS | CC_TURBO_BOOST; } \
-	else if((x) == CC_MAX_POWER) { PORTE.OUTSET = CC_MAX_POWER; PORTE.OUTCLR = CC_TURBO_BOOST; } \
-	else if((x) == CC_TURBO_BOOST) { PORTE.OUTSET = CC_MAX_POWER | CC_TURBO_BOOST; } \
-	else { PORTE.OUTSET = ~(x) & CC_PINS;  PORTE.OUTCLR = CC_TURBO_BOOST | ((x) & CC_PINS); } \
+	if((x) == 0) {PORTE.OUTCLR = CC_PINS | CC_BOOST_PIN; } \
+	else if((x) == CC_MAX_POWER) { PORTE.OUTSET = CC_MAX_POWER; PORTE.OUTCLR = CC_BOOST_PIN; } \
+	else if((x) == CC_TURBO_BOOST) { PORTE.OUTSET = CC_MAX_POWER | CC_BOOST_PIN;} \
+	else { PORTE.OUTSET = ~(x) & CC_PINS;  PORTE.OUTCLR = CC_BOOST_PIN | ((x) & CC_PINS); } \
 } while(0)
 
 static inline void ISRReadADC_H2A(void) {
