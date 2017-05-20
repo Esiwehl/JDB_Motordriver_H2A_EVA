@@ -148,9 +148,17 @@
 #define SENSORS_GRAVITY_EARTH	9.81
 #define GYRO_RES	0.0074770348//245/32768
 
+#define LSM9DS0_NUMAXES	3
+#define LSM9DS0_BYTES_PER_SAMPLE 2
+#define LSM9DS0_RAWDATASZ	(LSM9DS0_NUMAXES * LSM9DS0_BYTES_PER_SAMPLE)
 
-static void S9DOFWrite(char Address, char Data, uint8_t xm_or_g);
-static uint16_t S9DOFRead(char Address, uint8_t bytes, uint8_t xm_or_g);
+static uint8_t sRawAccelData[LSM9DS0_RAWDATASZ], sRawGyroData[LSM9DS0_RAWDATASZ];
+static uint8_t sRawMagnetoData[LSM9DS0_RAWDATASZ], sRawMagnetoOffset[LSM9DS0_RAWDATASZ];
+
+static void LSM9DS0Write(uint8_t addr, uint8_t *data, uint8_t numBytes, uint8_t xm_or_g);
+static void LSM9DS0WriteOne(uint8_t addr, uint8_t data, uint8_t xm_or_g);
+static void LSM9DS0Read(uint8_t addr, uint8_t *data, uint8_t numBytes, uint8_t xm_or_g);
+static uint16_t LSM9DS0ReadU16(uint8_t addr, uint8_t xm_or_g);
 
 void Init9DOF(void) {
 	
@@ -167,14 +175,14 @@ void Init9DOF(void) {
 	SDO_G_POORT.DIRCLR	=	SDO_G;
 	SDO_XM_POORT.DIRCLR	=	SDO_XM;
 
-	S9DOFWrite(LSM9DS0_CTRL_REG1_XM, 0x47, SELECT_XM);
-	S9DOFWrite(LSM9DS0_CTRL_REG2_XM, 0x08, SELECT_XM);
-	S9DOFWrite(LSM9DS0_CTRL_REG5_XM, 0x94, SELECT_XM);//was 0x10
-	S9DOFWrite(LSM9DS0_CTRL_REG6_XM, 0x20, SELECT_XM);
-	S9DOFWrite(LSM9DS0_CTRL_REG7_XM, 0x00, SELECT_XM);
+	LSM9DS0WriteOne(LSM9DS0_CTRL_REG1_XM, 0x47, SELECT_XM);
+	LSM9DS0WriteOne(LSM9DS0_CTRL_REG2_XM, 0x08, SELECT_XM);
+	LSM9DS0WriteOne(LSM9DS0_CTRL_REG5_XM, 0x94, SELECT_XM);//was 0x10
+	LSM9DS0WriteOne(LSM9DS0_CTRL_REG6_XM, 0x20, SELECT_XM);
+	LSM9DS0WriteOne(LSM9DS0_CTRL_REG7_XM, 0x00, SELECT_XM);
 
-	S9DOFWrite(LSM9DS0_CTRL_REG1_G, 0x8F, SELECT_G);
-	S9DOFWrite(LSM9DS0_CTRL_REG2_G, 0x00, SELECT_G);
+	LSM9DS0WriteOne(LSM9DS0_CTRL_REG1_G, 0x8F, SELECT_G);
+	LSM9DS0WriteOne(LSM9DS0_CTRL_REG2_G, 0x00, SELECT_G);
 	
 } /* Init9DOF */
 
@@ -196,104 +204,33 @@ void PrintCSV_9DOF(FILE *fd) {
 } /* PrintCSV_9DOF */
 
 
-static void S9DOFWrite(char Address, char Data, uint8_t xm_or_g) {
-	uint8_t bit = 0, i;
+static void LSM9DS0Write(uint8_t addr, uint8_t *data, uint8_t numBytes, uint8_t xm_or_g) {
+	uint8_t byteIdx = 0, i;
 
 	if (xm_or_g == SELECT_G)
 		CS_G_POORT.OUTCLR = CS_G;
 	else 
 		CS_XM_POORT.OUTCLR = CS_XM;
 
+	if(numBytes > 1)
+		addr |=LSM9DS0_ADDRINC_BIT;
+
 	for(i = 0; i < 8; i++) {
 		SCL_POORT.OUTCLR = SCL;
-		bit = ((Address << i) & 0x80);
-		if (bit) 
+		if ((addr << i) & 0x80) 
 			SDA_POORT.OUTSET = SDA;
 		else 
 			SDA_POORT.OUTCLR = SDA;
 		SCL_POORT.OUTSET = SCL;
 	}
 
-
-	for(i = 0; i < 8; i++) {
-		SCL_POORT.OUTCLR = SCL;
-		bit = ((Data << i) & 0x80);
-		if (bit)
-			SDA_POORT.OUTSET = SDA;
-		else 
-			SDA_POORT.OUTCLR = SDA;
-		SCL_POORT.OUTSET = SCL;
-	}
-
-	if (xm_or_g == SELECT_G)
-		CS_G_POORT.OUTSET = CS_G;
-	else 
-		CS_XM_POORT.OUTSET = CS_XM;
-		
-} /* S9DOFWrite */
-
-
-uint16_t S9DOFRead(char addr, uint8_t bytes, uint8_t xm_or_g) {
-	uint8_t bit, i;
-	int8_t bitG = 0;
-	int8_t bitXM = 0;
-	uint16_t data = 0;
-	uint16_t byteGyroG = 0, byte2GyroG =0;
-	uint16_t byteGyroXM = 0, byte2GyroXM = 0;
-
-	if (xm_or_g == SELECT_G)
-		CS_G_POORT.OUTCLR = CS_G;
-	else 
-		CS_XM_POORT.OUTCLR = CS_XM;
-
-	addr |= LSM9DS0_READ_BIT;
-	if(bytes > 1)
-		addr |= LSM9DS0_ADDRINC_BIT;
-
-	for(i = 0; i < 8; i++) {
-		bit = !!((addr << i) & 0x80);
-		if (bit)
-			SDA_POORT.OUTSET = SDA;
-		else
-			SDA_POORT.OUTCLR = SDA;
-		SCL_POORT.OUTCLR = SCL;
-		SCL_POORT.OUTSET = SCL;
-	}
-	SDA_POORT.OUTSET = SDA;
-
-	for(i = 0; i < 8; i++) {
-		SCL_POORT.OUTCLR = SCL;
-		SCL_POORT.OUTSET = SCL;
-		
-		if(SDO_G_POORT.IN & SDO_G)
-			bitG = 1;
-		else 
-			bitG = 0;
-		byteGyroG = ((byteGyroG&0x7F)<<1)|bitG;
-
-		if(SDO_XM_POORT.IN & SDO_XM)
-			bitXM = 1;
-		else
-			bitXM = 0;
-		byteGyroXM = ((byteGyroXM&0x7F)<<1) | bitXM;
-	}
-
-	if(bytes>1) {
-		for(int count = 0; count < 8; count++) {
+	for(byteIdx = 0; byteIdx < numBytes; byteIdx++) {
+		for(i = 0; i < 8; i++) {
 			SCL_POORT.OUTCLR = SCL;
-
-			if(SDO_G_POORT.IN & SDO_G)
-				bitG = 1;
-			else
-				bitG = 0;
-			byte2GyroG = ((byte2GyroG&0x7F)<<1)|bitG;
-
-			if(SDO_XM_POORT.IN & SDO_XM)
-				bitXM = 1;
+			if ((data[byteIdx] << i) & 0x80)
+				SDA_POORT.OUTSET = SDA;
 			else 
-				bitXM = 0;
-			byte2GyroXM = ((byte2GyroXM &0x7F)<<1)|bitXM;
-
+				SDA_POORT.OUTCLR = SDA;
 			SCL_POORT.OUTSET = SCL;
 		}
 	}
@@ -302,20 +239,73 @@ uint16_t S9DOFRead(char addr, uint8_t bytes, uint8_t xm_or_g) {
 		CS_G_POORT.OUTSET = CS_G;
 	else 
 		CS_XM_POORT.OUTSET = CS_XM;
+		
+} /* LSM9DS0Write */
 
-	if (xm_or_g == SELECT_G) 
-		data = (((uint16_t) byte2GyroG) << 8) | byteGyroG;
+
+static void LSM9DS0WriteOne(uint8_t addr, uint8_t data, uint8_t xm_or_g) {
+	
+	LSM9DS0Write(addr, &data, 1, xm_or_g);
+	
+} /* LSM9DS0WriteOne */
+
+
+static void LSM9DS0Read(uint8_t addr, uint8_t *data, uint8_t numBytes, uint8_t xm_or_g) {
+	uint8_t byteIdx, i;
+
+	if (xm_or_g == SELECT_G)
+		CS_G_POORT.OUTCLR = CS_G;
 	else 
-		data = (((uint16_t) byte2GyroXM) << 8) | byteGyroXM;
+		CS_XM_POORT.OUTCLR = CS_XM;
 
-	return data;
-}
+	addr |= LSM9DS0_READ_BIT;
+	if(numBytes > 1)
+		addr |= LSM9DS0_ADDRINC_BIT;
+
+	for(i = 0; i < 8; i++) {
+		if ((addr << i) & 0x80)
+			SDA_POORT.OUTSET = SDA;
+		else
+			SDA_POORT.OUTCLR = SDA;
+		SCL_POORT.OUTCLR = SCL;
+		SCL_POORT.OUTSET = SCL;
+	}
+	SDA_POORT.OUTSET = SDA;
+
+	for(byteIdx = 0; byteIdx < numBytes; byteIdx++) {
+		data[byteIdx] = 0;
+		for(i = 0; i < 8; i++) {
+			SCL_POORT.OUTCLR = SCL;
+			SCL_POORT.OUTSET = SCL;
+		
+			data[byteIdx] <<= 1; 
+			data[byteIdx] |= (xm_or_g == SELECT_XM) ? !!(SDO_XM_POORT.IN & SDO_XM) : !!(SDO_G_POORT.IN & SDO_G);
+		}
+	}
+	
+	if (xm_or_g == SELECT_G)
+		CS_G_POORT.OUTSET = CS_G;
+	else
+		CS_XM_POORT.OUTSET = CS_XM;
+	
+} /* LSM9DS0Read */
+
+
+static uint16_t LSM9DS0ReadU16(uint8_t addr, uint8_t xm_or_g) {
+
+	uint8_t data[2];
+	
+	LSM9DS0Read(addr, data, 2, xm_or_g);
+	
+	return ((uint16_t) data[1] << 8) | data[0];
+	
+} /* LSM9DS0ReadU16 */
 
 
 float GyroGetTemp(void) {
 	int16_t data = 0;
 
-	data = (int16_t)S9DOFRead(LSM9DS0_OUT_TEMP_L_XM,2,SELECT_XM);
+	data = (int16_t)LSM9DS0ReadU16(LSM9DS0_OUT_TEMP_L_XM,SELECT_XM);
 
 	return data * LSM9DS0_TEMP_DEG_PER_LSB;
 }
@@ -326,15 +316,15 @@ float GyroGetMagnetic(uint8_t X_Y_Z)
 	int16_t data = 0;
 	if (X_Y_Z == GET_X)
 	{
-		data = (int16_t) S9DOFRead(LSM9DS0_OUT_X_L_M,2,SELECT_XM);
+		data = (int16_t) LSM9DS0ReadU16(LSM9DS0_OUT_X_L_M,SELECT_XM);
 	}
 	if (X_Y_Z == GET_Y)
 	{
-		data = (int16_t) S9DOFRead(LSM9DS0_OUT_Y_L_M,2,SELECT_XM);
+		data = (int16_t) LSM9DS0ReadU16(LSM9DS0_OUT_Y_L_M,SELECT_XM);
 	}
 	if (X_Y_Z == GET_Z)
 	{
-		data = (int16_t) S9DOFRead(LSM9DS0_OUT_Z_L_M,2,SELECT_XM);
+		data = (int16_t) LSM9DS0ReadU16(LSM9DS0_OUT_Z_L_M,SELECT_XM);
 	}
 
 //if(data||0x8000)data = (~data +1)*(-1);
@@ -349,11 +339,11 @@ float GyroGetAcceleration(uint8_t X_Y_Z) {
 	int16_t data = 0;
 	
 	if (X_Y_Z == GET_X)
-		data = (int16_t) S9DOFRead(LSM9DS0_OUT_X_L_A,2,SELECT_XM);
+		data = (int16_t) LSM9DS0ReadU16(LSM9DS0_OUT_X_L_A,SELECT_XM);
 	if (X_Y_Z == GET_Y)
-		data = (int16_t) S9DOFRead(LSM9DS0_OUT_Y_L_A,2,SELECT_XM);
+		data = (int16_t) LSM9DS0ReadU16(LSM9DS0_OUT_Y_L_A,SELECT_XM);
 	if (X_Y_Z == GET_Z)
-		data = (int16_t) S9DOFRead(LSM9DS0_OUT_Z_L_A,2,SELECT_XM);
+		data = (int16_t) LSM9DS0ReadU16(LSM9DS0_OUT_Z_L_A,SELECT_XM);
 
 	//if(data||0x8000)data = (~data +1)*(-1);
 
@@ -367,11 +357,11 @@ float GyroGetGyro(uint8_t X_Y_Z) {
 	int16_t data = 0;
 
 	if (X_Y_Z == GET_X)
-		data = (int16_t) S9DOFRead(LSM9DS0_OUT_X_L_G,2,SELECT_G);
+		data = (int16_t) LSM9DS0ReadU16(LSM9DS0_OUT_X_L_G,SELECT_G);
 	if (X_Y_Z == GET_Y)
-		data = (int16_t) S9DOFRead(LSM9DS0_OUT_Y_L_G,2,SELECT_G);
+		data = (int16_t) LSM9DS0ReadU16(LSM9DS0_OUT_Y_L_G,SELECT_G);
 	if (X_Y_Z == GET_Z)
-		data = (int16_t) S9DOFRead(LSM9DS0_OUT_Z_L_G,2,SELECT_G);
+		data = (int16_t) LSM9DS0ReadU16(LSM9DS0_OUT_Z_L_G,SELECT_G);
 
 //if(data||0x8000)data = (~data +1)*(-1);
 
