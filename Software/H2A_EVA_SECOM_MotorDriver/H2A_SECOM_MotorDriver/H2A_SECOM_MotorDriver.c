@@ -58,7 +58,6 @@ int main(void)
 	
 	PrintResetHeader(&gCtrl_IO);
 	while(1) {
-		Process9DOF();
 		
 		if(CanRead_Ctrl()) {
 			switch(ReadByte_Ctrl()) {
@@ -90,6 +89,7 @@ int main(void)
 					}
 					else {
 						TakeSnapshot();
+						Process9DOF();
 						debugPrintstate = DEBUGPRINT_ANALOG;
 					}
 					break;

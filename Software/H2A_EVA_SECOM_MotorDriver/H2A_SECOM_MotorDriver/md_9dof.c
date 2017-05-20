@@ -126,27 +126,26 @@
 #define LSM9DS0_ADDRINC_BIT	0x40
 
 // Linear Acceleration: mg per LSB
-#define LSM9DS0_ACCEL_MG_LSB_2G (0.061)
-#define LSM9DS0_ACCEL_MG_LSB_4G (0.122)
-#define LSM9DS0_ACCEL_MG_LSB_6G (0.183)
-#define LSM9DS0_ACCEL_MG_LSB_8G (0.244)
-#define LSM9DS0_ACCEL_MG_LSB_16G (0.732) // Is this right? Was expecting 0.488F
+#define LSM9DS0_ACCEL_MG_LSB_2G (0.061f)
+#define LSM9DS0_ACCEL_MG_LSB_4G (0.122f)
+#define LSM9DS0_ACCEL_MG_LSB_6G (0.183f)
+#define LSM9DS0_ACCEL_MG_LSB_8G (0.244f)
+#define LSM9DS0_ACCEL_MG_LSB_16G (0.732f) // Is this right? Was expecting 0.488F
 
 // Magnetic Field Strength: gauss range
-#define LSM9DS0_MAG_MGAUSS_2GAUSS      (0.08)
-#define LSM9DS0_MAG_MGAUSS_4GAUSS      (0.16)
-#define LSM9DS0_MAG_MGAUSS_8GAUSS      (0.32)
-#define LSM9DS0_MAG_MGAUSS_12GAUSS     (0.48)
+#define LSM9DS0_MAG_MGAUSS_2GAUSS      (0.08f)
+#define LSM9DS0_MAG_MGAUSS_4GAUSS      (0.16f)
+#define LSM9DS0_MAG_MGAUSS_8GAUSS      (0.32f)
+#define LSM9DS0_MAG_MGAUSS_12GAUSS     (0.48f)
 
 // Angular Rate: dps per LSB
-#define LSM9DS0_GYRO_DPS_DIGIT_245DPS      (0.00875)
-#define LSM9DS0_GYRO_DPS_DIGIT_500DPS      (0.01750)
-#define LSM9DS0_GYRO_DPS_DIGIT_2000DPS     (0.07000)
+#define LSM9DS0_GYRO_DPS_DIGIT_245DPS      (0.00875f)
+#define LSM9DS0_GYRO_DPS_DIGIT_500DPS      (0.01750f)
+#define LSM9DS0_GYRO_DPS_DIGIT_2000DPS     (0.07000f)
 
-#define LSM9DS0_TEMP_DEG_PER_LSB	(0.125)
+#define LSM9DS0_TEMP_DEG_PER_LSB	(0.125f)
 
-#define SENSORS_GRAVITY_EARTH	9.81
-#define GYRO_RES	0.0074770348//245/32768
+#define SENSORS_GRAVITY_EARTH	9.81f
 
 #define LSM9DS0_NUMAXES	3
 #define LSM9DS0_BYTES_PER_SAMPLE 2
@@ -154,6 +153,9 @@
 
 static uint8_t sRawAccelData[LSM9DS0_RAWDATASZ], sRawGyroData[LSM9DS0_RAWDATASZ];
 static uint8_t sRawMagnetoData[LSM9DS0_RAWDATASZ], sRawMagnetoOffset[LSM9DS0_RAWDATASZ];
+static uint8_t sRawTemperatureData[LSM9DS0_BYTES_PER_SAMPLE];
+
+#define CONCATU8TOU16(d) ((uint16_t)*((d)+1) << 8 | *(d))
 
 static void LSM9DS0Write(uint8_t addr, uint8_t *data, uint8_t numBytes, uint8_t xm_or_g);
 static void LSM9DS0WriteOne(uint8_t addr, uint8_t data, uint8_t xm_or_g);
@@ -175,19 +177,25 @@ void Init9DOF(void) {
 	SDO_G_POORT.DIRCLR	=	SDO_G;
 	SDO_XM_POORT.DIRCLR	=	SDO_XM;
 
-	LSM9DS0WriteOne(LSM9DS0_CTRL_REG1_XM, 0x47, SELECT_XM);
-	LSM9DS0WriteOne(LSM9DS0_CTRL_REG2_XM, 0x08, SELECT_XM);
-	LSM9DS0WriteOne(LSM9DS0_CTRL_REG5_XM, 0x94, SELECT_XM);//was 0x10
-	LSM9DS0WriteOne(LSM9DS0_CTRL_REG6_XM, 0x20, SELECT_XM);
-	LSM9DS0WriteOne(LSM9DS0_CTRL_REG7_XM, 0x00, SELECT_XM);
+	LSM9DS0WriteOne(LSM9DS0_CTRL_REG1_XM, 0xA7, SELECT_XM); // 0xA7: 1600Hz update rate, continuous update, XYZ all enabled
+	LSM9DS0WriteOne(LSM9DS0_CTRL_REG2_XM, 0x08, SELECT_XM); // 0x08: Anti-alias 773Hz, 4G full scale, self-test off
+	LSM9DS0WriteOne(LSM9DS0_CTRL_REG5_XM, 0x94, SELECT_XM); // 0x94: temp sensor on, mag res low, 100Hz mag data rate
+	LSM9DS0WriteOne(LSM9DS0_CTRL_REG6_XM, 0x20, SELECT_XM); // 0x20: 4Gauss full-scale magnetics
+	LSM9DS0WriteOne(LSM9DS0_CTRL_REG7_XM, 0x00, SELECT_XM); // 0x00: high-pass filter off, mag normal power, mag continuous conversion
 
-	LSM9DS0WriteOne(LSM9DS0_CTRL_REG1_G, 0x8F, SELECT_G);
-	LSM9DS0WriteOne(LSM9DS0_CTRL_REG2_G, 0x00, SELECT_G);
+	LSM9DS0WriteOne(LSM9DS0_CTRL_REG1_G, 0xFF, SELECT_G); // 0xFF: ODR 760Hz, Cutoff 100Hz, normal mode, XYZ on
+	LSM9DS0WriteOne(LSM9DS0_CTRL_REG2_G, 0x09, SELECT_G); // 0x09: HPF normal mode, HPF cutoff 0.09Hz
 	
 } /* Init9DOF */
 
 
 void Process9DOF(void) {
+	
+	LSM9DS0Read(LSM9DS0_OUT_X_L_A, sRawAccelData, LSM9DS0_RAWDATASZ, SELECT_XM);
+	LSM9DS0Read(LSM9DS0_OUT_X_L_G, sRawGyroData, LSM9DS0_RAWDATASZ, SELECT_G);
+	LSM9DS0Read(LSM9DS0_OUT_X_L_M, sRawMagnetoData, LSM9DS0_RAWDATASZ, SELECT_XM);
+	LSM9DS0Read(LSM9DS0_OFFSET_X_L_M, sRawMagnetoOffset, LSM9DS0_RAWDATASZ, SELECT_XM);
+	LSM9DS0Read(LSM9DS0_OUT_TEMP_L_XM, sRawTemperatureData, LSM9DS0_BYTES_PER_SAMPLE, SELECT_XM);
 	
 } /* Process9DOF */
 
@@ -305,68 +313,45 @@ static uint16_t LSM9DS0ReadU16(uint8_t addr, uint8_t xm_or_g) {
 float GyroGetTemp(void) {
 	int16_t data = 0;
 
-	data = (int16_t)LSM9DS0ReadU16(LSM9DS0_OUT_TEMP_L_XM,SELECT_XM);
+	data = CONCATU8TOU16(sRawTemperatureData);
 
 	return data * LSM9DS0_TEMP_DEG_PER_LSB;
 }
 
 
-float GyroGetMagnetic(uint8_t X_Y_Z)
-{
-	int16_t data = 0;
-	if (X_Y_Z == GET_X)
-	{
-		data = (int16_t) LSM9DS0ReadU16(LSM9DS0_OUT_X_L_M,SELECT_XM);
-	}
-	if (X_Y_Z == GET_Y)
-	{
-		data = (int16_t) LSM9DS0ReadU16(LSM9DS0_OUT_Y_L_M,SELECT_XM);
-	}
-	if (X_Y_Z == GET_Z)
-	{
-		data = (int16_t) LSM9DS0ReadU16(LSM9DS0_OUT_Z_L_M,SELECT_XM);
-	}
+float GyroGetMagnetic(uint8_t X_Y_Z) {
+	int16_t data;
+	
+	if(X_Y_Z > GET_Z)
+		X_Y_Z = GET_Z;
+	
+	data = CONCATU8TOU16(sRawMagnetoData + LSM9DS0_BYTES_PER_SAMPLE * X_Y_Z);
 
-//if(data||0x8000)data = (~data +1)*(-1);
-
-	float return_data = ((float)data / 1000)*LSM9DS0_MAG_MGAUSS_4GAUSS;
-
-	return return_data;
+	return (float)data * LSM9DS0_MAG_MGAUSS_4GAUSS;
 }
 
 
 float GyroGetAcceleration(uint8_t X_Y_Z) {
-	int16_t data = 0;
+	int16_t data;
 	
-	if (X_Y_Z == GET_X)
-		data = (int16_t) LSM9DS0ReadU16(LSM9DS0_OUT_X_L_A,SELECT_XM);
-	if (X_Y_Z == GET_Y)
-		data = (int16_t) LSM9DS0ReadU16(LSM9DS0_OUT_Y_L_A,SELECT_XM);
-	if (X_Y_Z == GET_Z)
-		data = (int16_t) LSM9DS0ReadU16(LSM9DS0_OUT_Z_L_A,SELECT_XM);
+	if(X_Y_Z > GET_Z)
+		X_Y_Z = GET_Z;
+		
+	data = CONCATU8TOU16(sRawAccelData + LSM9DS0_BYTES_PER_SAMPLE * X_Y_Z);
+	
+	return (((float)data / 1000) * SENSORS_GRAVITY_EARTH)*LSM9DS0_ACCEL_MG_LSB_4G;
 
-	//if(data||0x8000)data = (~data +1)*(-1);
-
-	float return_data = (((float)data / 1000) * SENSORS_GRAVITY_EARTH)*LSM9DS0_ACCEL_MG_LSB_4G; // factor voor
-
-	return return_data;
 }
 
 
 float GyroGetGyro(uint8_t X_Y_Z) {
-	int16_t data = 0;
+	int16_t data;
+	
+	if(X_Y_Z > GET_Z)
+	X_Y_Z = GET_Z;
+	
+	data = CONCATU8TOU16(sRawGyroData + LSM9DS0_BYTES_PER_SAMPLE * X_Y_Z);
 
-	if (X_Y_Z == GET_X)
-		data = (int16_t) LSM9DS0ReadU16(LSM9DS0_OUT_X_L_G,SELECT_G);
-	if (X_Y_Z == GET_Y)
-		data = (int16_t) LSM9DS0ReadU16(LSM9DS0_OUT_Y_L_G,SELECT_G);
-	if (X_Y_Z == GET_Z)
-		data = (int16_t) LSM9DS0ReadU16(LSM9DS0_OUT_Z_L_G,SELECT_G);
-
-//if(data||0x8000)data = (~data +1)*(-1);
-
-	float return_data = ((float)data)*LSM9DS0_GYRO_DPS_DIGIT_245DPS;
-
-	return return_data;
+	return ((float)data)*LSM9DS0_GYRO_DPS_DIGIT_245DPS;
 }
 
