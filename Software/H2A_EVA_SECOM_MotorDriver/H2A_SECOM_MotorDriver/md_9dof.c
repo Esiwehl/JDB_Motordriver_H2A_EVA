@@ -162,7 +162,7 @@ static void LSM9DS0WriteOne(uint8_t addr, uint8_t data, uint8_t xm_or_g);
 static void LSM9DS0Read(uint8_t addr, uint8_t *data, uint8_t numBytes, uint8_t xm_or_g);
 static uint16_t LSM9DS0ReadU16(uint8_t addr, uint8_t xm_or_g);
 
-void Init9DOF(void) {
+void InitIMU(void) {
 	
 	SDA_POORT.DIRSET	=	SDA;
 	CS_G_POORT.DIRSET	=	CS_G;
@@ -186,10 +186,10 @@ void Init9DOF(void) {
 	LSM9DS0WriteOne(LSM9DS0_CTRL_REG1_G, 0xFF, SELECT_G); // 0xFF: ODR 760Hz, Cutoff 100Hz, normal mode, XYZ on
 	LSM9DS0WriteOne(LSM9DS0_CTRL_REG2_G, 0x09, SELECT_G); // 0x09: HPF normal mode, HPF cutoff 0.09Hz
 	
-} /* Init9DOF */
+} /* InitIMU */
 
 
-void Process9DOF(void) {
+void ProcessIMU(void) {
 	
 	LSM9DS0Read(LSM9DS0_OUT_X_L_A, sRawAccelData, LSM9DS0_RAWDATASZ, SELECT_XM);
 	LSM9DS0Read(LSM9DS0_OUT_X_L_G, sRawGyroData, LSM9DS0_RAWDATASZ, SELECT_G);
@@ -197,19 +197,19 @@ void Process9DOF(void) {
 	LSM9DS0Read(LSM9DS0_OFFSET_X_L_M, sRawMagnetoOffset, LSM9DS0_RAWDATASZ, SELECT_XM);
 	LSM9DS0Read(LSM9DS0_OUT_TEMP_L_XM, sRawTemperatureData, LSM9DS0_BYTES_PER_SAMPLE, SELECT_XM);
 	
-} /* Process9DOF */
+} /* ProcessIMU */
 
 
-void PrintCSV_9DOF(FILE *fd) {
+void PrintCSV_IMU(FILE *fd) {
 	
 	// Dummy print for now. Format will be: Accel[XYZ],Magneto[XYZ],Gyro[XYZ],Temp
-	fprintf(fd, "%.3f,%.3f,%.3f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,%.1f,",
-		GyroGetAcceleration(GET_X), GyroGetAcceleration(GET_Y), GyroGetAcceleration(GET_Z),
-		GyroGetMagnetic(GET_X), GyroGetMagnetic(GET_Y), GyroGetMagnetic(GET_Z),
-		GyroGetGyro(GET_X), GyroGetGyro(GET_Y), GyroGetGyro(GET_Z),
-		GyroGetTemp());
+	fprintf(fd, "%.3f,%.3f,%.3f,%.4f,%.4f,%.4f,%.4f,%.1f,%.1f,%.1f,",
+		IMUGetAcceleration(GET_X), IMUGetAcceleration(GET_Y), IMUGetAcceleration(GET_Z),
+		IMUGetMagnetic(GET_X), IMUGetMagnetic(GET_Y), IMUGetMagnetic(GET_Z),
+		IMUGetGyro(GET_X), IMUGetGyro(GET_Y), IMUGetGyro(GET_Z),
+		IMUGetTemperature());
 	
-} /* PrintCSV_9DOF */
+} /* PrintCSV_IMU */
 
 
 static void LSM9DS0Write(uint8_t addr, uint8_t *data, uint8_t numBytes, uint8_t xm_or_g) {
@@ -310,7 +310,7 @@ static uint16_t LSM9DS0ReadU16(uint8_t addr, uint8_t xm_or_g) {
 } /* LSM9DS0ReadU16 */
 
 
-float GyroGetTemp(void) {
+float IMUGetTemperature(void) {
 	int16_t data = 0;
 
 	data = CONCATU8TOU16(sRawTemperatureData);
@@ -319,7 +319,7 @@ float GyroGetTemp(void) {
 }
 
 
-float GyroGetMagnetic(uint8_t X_Y_Z) {
+float IMUGetMagnetic(uint8_t X_Y_Z) {
 	int16_t data;
 	
 	if(X_Y_Z > GET_Z)
@@ -327,11 +327,11 @@ float GyroGetMagnetic(uint8_t X_Y_Z) {
 	
 	data = CONCATU8TOU16(sRawMagnetoData + LSM9DS0_BYTES_PER_SAMPLE * X_Y_Z);
 
-	return (float)data * LSM9DS0_MAG_MGAUSS_4GAUSS;
+	return (float)data * LSM9DS0_MAG_MGAUSS_4GAUSS / 1000.0f;
 }
 
 
-float GyroGetAcceleration(uint8_t X_Y_Z) {
+float IMUGetAcceleration(uint8_t X_Y_Z) {
 	int16_t data;
 	
 	if(X_Y_Z > GET_Z)
@@ -344,7 +344,7 @@ float GyroGetAcceleration(uint8_t X_Y_Z) {
 }
 
 
-float GyroGetGyro(uint8_t X_Y_Z) {
+float IMUGetGyro(uint8_t X_Y_Z) {
 	int16_t data;
 	
 	if(X_Y_Z > GET_Z)

@@ -51,7 +51,7 @@ int main(void)
 	InitSerial();
 	InitSlave(GetBusID());
 	InitCoreAnalog();
-	Init9DOF();
+	InitIMU();
 	InitReadBussensors();
 	
 	sei();
@@ -89,7 +89,7 @@ int main(void)
 					}
 					else {
 						TakeSnapshot();
-						Process9DOF();
+						ProcessIMU();
 						debugPrintstate = DEBUGPRINT_ANALOG;
 					}
 					break;
@@ -103,7 +103,7 @@ int main(void)
 					debugPrintstate = DEBUGPRINT_9DOF;
 					break;
 				case DEBUGPRINT_9DOF:
-					PrintCSV_9DOF(&gCtrl_IO);
+					PrintCSV_IMU(&gCtrl_IO);
 					debugPrintstate = DEBUGPRINT_BUS;
 					break;
 				case DEBUGPRINT_BUS:
