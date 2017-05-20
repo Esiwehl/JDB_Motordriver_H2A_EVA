@@ -215,9 +215,9 @@ static void LSM9DS0Write(uint8_t addr, uint8_t *data, uint8_t numBytes, uint8_t 
 	if(numBytes > 1)
 		addr |=LSM9DS0_ADDRINC_BIT;
 
-	for(i = 0; i < 8; i++) {
+	for(i = 0x80; i > 0; i >>= 1) {
 		SCL_POORT.OUTCLR = SCL;
-		if ((addr << i) & 0x80) 
+		if (addr & i) 
 			SDA_POORT.OUTSET = SDA;
 		else 
 			SDA_POORT.OUTCLR = SDA;
@@ -225,9 +225,9 @@ static void LSM9DS0Write(uint8_t addr, uint8_t *data, uint8_t numBytes, uint8_t 
 	}
 
 	for(byteIdx = 0; byteIdx < numBytes; byteIdx++) {
-		for(i = 0; i < 8; i++) {
+		for(i = 0x80; i > 0; i >>= 1) {
 			SCL_POORT.OUTCLR = SCL;
-			if ((data[byteIdx] << i) & 0x80)
+			if (data[byteIdx] & i)
 				SDA_POORT.OUTSET = SDA;
 			else 
 				SDA_POORT.OUTCLR = SDA;
@@ -262,8 +262,8 @@ static void LSM9DS0Read(uint8_t addr, uint8_t *data, uint8_t numBytes, uint8_t x
 	if(numBytes > 1)
 		addr |= LSM9DS0_ADDRINC_BIT;
 
-	for(i = 0; i < 8; i++) {
-		if ((addr << i) & 0x80)
+	for(i = 0x80; i > 0; i >>= 1) {
+		if (addr & i)
 			SDA_POORT.OUTSET = SDA;
 		else
 			SDA_POORT.OUTCLR = SDA;
