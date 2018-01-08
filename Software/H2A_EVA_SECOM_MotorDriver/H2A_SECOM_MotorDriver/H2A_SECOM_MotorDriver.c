@@ -22,9 +22,15 @@
 #include "DataInPrivate.h"
 #include "util.h"
 
+#include "lowpower_macros_md.h"
+
 
 static void InitClocks(void);
 static void InitIO(void);
+void LOWPOWER_Init(void);
+
+
+
 
 #define PRINTCSV_LINELEN 150 /* Approximate line length of the PrintCSV() call. 
 								No point in generating a new line if there are not at least this many bytes free */
@@ -53,7 +59,8 @@ int main(void)
 	InitCoreAnalog();
 	InitIMU();
 	InitReadBussensors();
-	
+	LOWPOWER_Init();
+
 	sei();
 	
 	PrintResetHeader(&gCtrl_IO);
@@ -157,4 +164,13 @@ static void InitIO(void) {
 	
 	PORTF.DIR = PIN0_bm | PIN3_bm | PIN4_bm | PIN5_bm | PIN6_bm | PIN7_bm;
 	PORTF.OUTCLR = PIN3_bm | PIN4_bm | PIN5_bm;
+}
+
+void LOWPOWER_Init(void) {
+
+	DISABLE_GEN();
+	DISABLE_TC();
+	DISABLE_COM();
+	DISABLE_ANLG();
+	
 }
