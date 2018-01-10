@@ -21,7 +21,7 @@
 #include "md_readbussensors.h"
 #include "DataInPrivate.h"
 #include "util.h"
-
+#include <avr/sleep.h>
 #include "lowpower_macros_md.h"
 
 
@@ -60,12 +60,16 @@ int main(void)
 	InitIMU();
 	InitReadBussensors();
 	LOWPOWER_Init();
+	
+	set_sleep_mode(SLEEP_MODE_IDLE); // Set sleep mode to IDLE which is the only one that allows us to wake from TC overflow event interrupt
 
 	sei();
 	
 	PrintResetHeader(&gCtrl_IO);
+	
 	while(1) {
-		
+    sleep_mode();   // goodnight
+
 		if(CanRead_Ctrl()) {
 			switch(ReadByte_Ctrl()) {
 				case 0x1B:
@@ -169,7 +173,7 @@ static void InitIO(void) {
 void LOWPOWER_Init(void) {
 
 	DISABLE_GEN();
-	DISABLE_TC();
+	//DISABLE_TC(); Timer counter?
 	DISABLE_COM();
 	DISABLE_ANLG();
 	

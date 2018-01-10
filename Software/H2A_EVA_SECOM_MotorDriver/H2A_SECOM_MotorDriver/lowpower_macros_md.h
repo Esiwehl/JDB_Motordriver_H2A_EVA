@@ -96,7 +96,7 @@
 // A3
 
 #define DISABLE_GEN( ) { \
-	PR.PRGEN |= PR_AES_bm | PR_DMA_bm | PR_RTC_bm; \
+	PR.PRGEN |= PR_AES_bm | PR_DMA_bm; \
 }
 
 #define DISABLE_TC( ) { \
