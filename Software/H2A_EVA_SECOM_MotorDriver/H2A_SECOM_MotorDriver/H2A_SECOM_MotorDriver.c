@@ -68,8 +68,12 @@ int main(void)
 	PrintResetHeader(&gCtrl_IO);
 	
 	while(1) {
+<<<<<<< HEAD
 	
 	sleep_mode();   // goodnight
+=======
+    sleep_mode();   // goodnight
+>>>>>>> felixdevelop
 
 		if(CanRead_Ctrl()) {
 			switch(ReadByte_Ctrl()) {
@@ -178,7 +182,11 @@ static void InitIO(void) {
 void LOWPOWER_Init(void) {
 
 	DISABLE_GEN();
+<<<<<<< HEAD
 	//DISABLE_TC(); //Timer counter?
+=======
+	//DISABLE_TC(); Timer counter?
+>>>>>>> felixdevelop
 	DISABLE_COM();
 	DISABLE_ANLG();
 	
