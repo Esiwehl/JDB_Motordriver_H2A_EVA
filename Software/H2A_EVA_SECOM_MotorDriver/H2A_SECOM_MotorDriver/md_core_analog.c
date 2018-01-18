@@ -128,6 +128,9 @@ static volatile uint32_t sSessionCycleCount;
 static volatile uint8_t sCC2OverrideEnable, sCC2TargetSpeedUpdate;
 static volatile int32_t sCC2MinSpeed, sCC2TargetSpeed;
 
+static volatile float aTargetSpeed;
+
+
 /* Variables used to communicate between the interrupt routines */
 
 
@@ -320,6 +323,36 @@ typedef struct {
 #define NUM_CAL_OPTS_EVA 4
 #define MAX_CAL_POINTS 5
 #define MAX_WHEEL_PULSES_SEEN_BEFORE_CAL 100
+
+
+void receiveSpeedfromDebug(FILE *fp){
+	uint8_t inputChar = 0;
+	uint32_t totalChar = 0;
+
+	while(CanRead_Ctrl())
+	ReadByte_Ctrl();
+	
+	fprintf(fp, "\r\n# Enter target speed in [cm/s]:");
+	
+	do {
+		inputChar = ReadByte_Ctrl();
+		if(isdigit(inputChar)) {
+			fprintf(fp, "%c", inputChar);
+			totalChar = 10 * totalChar + inputChar - '0';
+		}
+	} while(isdigit(inputChar));
+	
+	aTargetSpeed = (totalChar / 100.0f) * 3.6f;		// cm/s to km/h
+	
+	if(inputChar == 'a' || inputChar == 'A'){
+		fprintf(fp, "\r\n# Target speed set to %.2f km/h\n", aTargetSpeed);
+	} else{
+		fprintf(fp, "\r\n# Set target speed ABORTED");
+	}
+
+	
+}
+
 
 void CalibrateChannel(FILE *fp) {
 	
@@ -781,6 +814,7 @@ static float GetProcessedSpeed(int32_t speedSensorPulseInterval, float wheelMete
 	}
 	else
 	res = 0.0f;
+	
 
 	return res;
 } /* GetProcessedSpeed */
@@ -1062,7 +1096,12 @@ ISR(ADCA_CH0_vect) {
 		if(!selCCPin && sSensorData.speedSensorPulseInterval < (((int32_t) (I_AM_H2A ? H2A_CC_MAX_INTERVAL : EVA_CC_MAX_INTERVAL)) << 16)) {
 			sCCIsOn = 1;
 			sSensorData.ccPower = CC_DEFAULT_POWER;
-			sCCPrevPulseInterval = sSensorData.ccTargetSpeed = sSensorData.speedSensorPulseInterval;
+			
+			if (1 == 1){												// Autonomous take over
+				sSensorData.ccTargetSpeed = aTargetSpeed;
+			} else {
+				sCCPrevPulseInterval = sSensorData.ccTargetSpeed = sSensorData.speedSensorPulseInterval;
+			}
 			sCCRunTimer = CC_REG_CYCLES;
 			SET_CC_DRIVE(sSensorData.ccPower);
 		}

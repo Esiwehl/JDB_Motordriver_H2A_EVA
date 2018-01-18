@@ -25,6 +25,7 @@
 
 void InitCoreAnalog(void);
 void CalibrateChannel(FILE *fp);
+void receiveSpeedfromDebug(FILE *fp);
 
 void TakeSnapshot(void);
 uint8_t IsSnapshotDone(void);

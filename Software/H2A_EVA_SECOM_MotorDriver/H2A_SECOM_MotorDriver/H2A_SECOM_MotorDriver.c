@@ -21,10 +21,16 @@
 #include "md_readbussensors.h"
 #include "DataInPrivate.h"
 #include "util.h"
+#include <avr/sleep.h>
+#include "lowpower_macros_md.h"
 
 
 static void InitClocks(void);
 static void InitIO(void);
+void LOWPOWER_Init(void);
+
+
+
 
 #define PRINTCSV_LINELEN 150 /* Approximate line length of the PrintCSV() call. 
 								No point in generating a new line if there are not at least this many bytes free */
@@ -53,17 +59,27 @@ int main(void)
 	InitCoreAnalog();
 	InitIMU();
 	InitReadBussensors();
+	LOWPOWER_Init();
 	
+	set_sleep_mode(SLEEP_MODE_IDLE); // Set sleep mode to IDLE which is the only one that allows us to wake from TC overflow event interrupt
+
 	sei();
 	
 	PrintResetHeader(&gCtrl_IO);
+	
 	while(1) {
-		
+	
+	sleep_mode();   // goodnight
+
 		if(CanRead_Ctrl()) {
 			switch(ReadByte_Ctrl()) {
 				case 0x1B:
 					/* ESC -- sync character for avrdude. The programmer is trying to talk to us, so reset the chip */
 					CCPWrite( &RST.CTRL, RST_SWRST_bm );
+					break; 
+				case 's':
+				case 'S':
+					receiveSpeedfromDebug(&gCtrl_IO);		// Receive target speed from debug
 					break;
 				case 'c':
 				case 'C':
@@ -157,4 +173,13 @@ static void InitIO(void) {
 	
 	PORTF.DIR = PIN0_bm | PIN3_bm | PIN4_bm | PIN5_bm | PIN6_bm | PIN7_bm;
 	PORTF.OUTCLR = PIN3_bm | PIN4_bm | PIN5_bm;
+}
+
+void LOWPOWER_Init(void) {
+
+	DISABLE_GEN();
+	//DISABLE_TC(); //Timer counter?
+	DISABLE_COM();
+	DISABLE_ANLG();
+	
 }
