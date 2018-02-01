@@ -128,7 +128,7 @@ static volatile uint32_t sSessionCycleCount;
 static volatile uint8_t sCC2OverrideEnable, sCC2TargetSpeedUpdate;
 static volatile int32_t sCC2MinSpeed, sCC2TargetSpeed;
 
-static volatile float aTargetSpeed;
+static volatile float aTargetSpeed;		// Variable for saving target speed received from serial debug
 
 
 /* Variables used to communicate between the interrupt routines */
@@ -824,7 +824,7 @@ void PrintCSV_H2A(FILE *fp) {
 	/* Assume the calling code has already initiated a snapshot */
 	while(!(IsSnapshotDone())) ; /* Wait for the snapshot to be taken */
 
-	fprintf(fp, ">03|03:%.4f,%.3f,%.3f,%.2f,%.0f,%.3f,%.3f,%.2f,%.0f,%.3f,%.3f,%.1f,%.0f,%.3f,%.3f,%.1f,%.0f,%.2f,%.0f,%.0f,%.3f,%.2f,%.4f,%.4f,%d,%.3f,%d,%.3f,%d,%.3f,%d,%.3f,%d,%.3f,",
+	fprintf(fp, ">03|03:%.4f,%.3f,%.3f,%.2f,%.0f,%.3f,%.3f,%.2f,%.0f,%.3f,%.3f,%.1f,%.0f,%.3f,%.3f,%.1f,%.0f,%.2f,%.0f,%.0f,%.3f,%.2f,%.4f,%.4f,%d,%.3f,%d,%.3f,%d,%.3f,%d,%.3f,%d,%.3f,%.3f,",
 		(float) sSessionCycleCountSnapshot / CYCLES_PER_SECOND,
 		sSensorDataSnapshot.adc.h2a.fcVoltageFiltered / (65536.0f * sCal.fcVoltageScale),
 		sSensorDataSnapshot.adc.h2a.fcCurrentFiltered / (65536.0f * sCal.fcCurrentScale),
@@ -858,7 +858,8 @@ void PrintCSV_H2A(FILE *fp) {
 		(int16_t)sSensorDataSnapshot.ccPower,
 		sSensorDataSnapshot.ccTargetSpeed ? (H2A_WHEEL_METER_PER_PULSE * WHEEL_MS_TO_KMH * CYCLES_PER_SECOND / (sSensorDataSnapshot.ccTargetSpeed  / 65536.0f)) : 0.0f,
 		(int16_t)!sSensorDataSnapshot.selCC2State,
-		((float) sSensorDataSnapshot.selCC2Timestamp / CYCLES_PER_SECOND));
+		((float) sSensorDataSnapshot.selCC2Timestamp / CYCLES_PER_SECOND),
+		aTargetSpeed);
 	
 } /* PrintCSV_H2A */
 
@@ -1097,11 +1098,12 @@ ISR(ADCA_CH0_vect) {
 			sCCIsOn = 1;
 			sSensorData.ccPower = CC_DEFAULT_POWER;
 			
-			if (1 == 1){												// Autonomous take over
-				sSensorData.ccTargetSpeed = aTargetSpeed;
+			if (I_AM_EVA){												// Autonomous take over. For now always EVA
+				sSensorData.ccTargetSpeed = (int32_t) (EVA_WHEEL_METER_PER_PULSE * WHEEL_MS_TO_KMH * CYCLES_PER_SECOND * 65536.0f) / aTargetSpeed;
 			} else {
 				sCCPrevPulseInterval = sSensorData.ccTargetSpeed = sSensorData.speedSensorPulseInterval;
 			}
+			
 			sCCRunTimer = CC_REG_CYCLES;
 			SET_CC_DRIVE(sSensorData.ccPower);
 		}

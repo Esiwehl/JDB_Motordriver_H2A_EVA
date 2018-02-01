@@ -12,6 +12,7 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <stdio.h>
+#include <avr/sleep.h>
 
 #include "md_core_analog.h"
 #include "md_serial.h"
@@ -21,7 +22,6 @@
 #include "md_readbussensors.h"
 #include "DataInPrivate.h"
 #include "util.h"
-#include <avr/sleep.h>
 #include "lowpower_macros_md.h"
 
 
@@ -68,12 +68,8 @@ int main(void)
 	PrintResetHeader(&gCtrl_IO);
 	
 	while(1) {
-<<<<<<< HEAD
-	
-	sleep_mode();   // goodnight
-=======
+
     sleep_mode();   // goodnight
->>>>>>> felixdevelop
 
 		if(CanRead_Ctrl()) {
 			switch(ReadByte_Ctrl()) {
@@ -83,7 +79,7 @@ int main(void)
 					break; 
 				case 's':
 				case 'S':
-					receiveSpeedfromDebug(&gCtrl_IO);		// Receive target speed from debug
+					if (I_AM_EVA) receiveSpeedfromDebug(&gCtrl_IO);		// Receive target speed from debug
 					break;
 				case 'c':
 				case 'C':
@@ -182,11 +178,7 @@ static void InitIO(void) {
 void LOWPOWER_Init(void) {
 
 	DISABLE_GEN();
-<<<<<<< HEAD
 	//DISABLE_TC(); //Timer counter?
-=======
-	//DISABLE_TC(); Timer counter?
->>>>>>> felixdevelop
 	DISABLE_COM();
 	DISABLE_ANLG();
 	
