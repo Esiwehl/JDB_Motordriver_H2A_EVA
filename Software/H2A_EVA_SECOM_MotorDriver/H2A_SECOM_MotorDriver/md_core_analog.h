@@ -26,7 +26,7 @@
 void InitCoreAnalog(void);
 void CalibrateChannel(FILE *fp);
 void receiveSpeedfromDebug(FILE *fp);
-
+float GetSpeedfromMotorVoltage(void);
 void TakeSnapshot(void);
 uint8_t IsSnapshotDone(void);
 uint32_t GetSessionCycleCount(void);

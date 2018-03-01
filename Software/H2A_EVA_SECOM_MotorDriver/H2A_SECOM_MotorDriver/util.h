@@ -19,11 +19,14 @@
 
 #define BOARDID (PORTD.IN & BOARDID_bm)
 
+#define AUTONOMOUS_MODE 1
+
 #define I_AM_H2A	(BOARDID == BOARDID_H2A)
 #define I_AM_EVA	(!I_AM_H2A)
 #define I_AM_EVA_L	(BOARDID == BOARDID_EVA_L)
 #define I_AM_EVA_R	(BOARDID == BOARDID_EVA_R)
 #define I_AM_EVA_M	(BOARDID == BOARDID_EVA_M)
+#define I_AM_EVA_AUTO (I_AM_EVA && AUTONOMOUS_MODE)
 
 
 #define EE_FC_VSCALE	((void *)0x00)

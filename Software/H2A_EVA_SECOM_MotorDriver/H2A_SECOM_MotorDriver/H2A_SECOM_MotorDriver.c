@@ -79,14 +79,14 @@ int main(void)
 					break; 
 				case 's':
 				case 'S':
-					if (I_AM_EVA) receiveSpeedfromDebug(&gCtrl_IO);		// Receive target speed from debug
+					if (I_AM_EVA_AUTO) receiveSpeedfromDebug(&gCtrl_IO);		// Receive target speed from debug when receiving char 's' or 'S'
 					break;
 				case 'c':
 				case 'C':
 					CalibrateChannel(&gCtrl_IO);
 					break;
 			}
-			escTimeoutActive = 1;
+			escTimeoutActive = 0;			//  Why wait a second before continuing logging? Was '1'
 			prev = GetSessionCycleCount();
 		}
 		now = GetSessionCycleCount();

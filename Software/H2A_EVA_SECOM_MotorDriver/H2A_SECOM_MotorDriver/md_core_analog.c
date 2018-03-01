@@ -38,13 +38,22 @@
 #define H2A_WHEEL_METER_PER_PULSE	(H2A_WHEEL_METER_PER_ROT / H2A_WHEEL_PULSE_PER_ROT)
 #define EVA_WHEEL_METER_PER_PULSE	(EVA_WHEEL_METER_PER_ROT / EVA_WHEEL_PULSE_PER_ROT)
 
+#define	H2A_GEAR_RATIO				0.067f
+#define	EVA_GEAR_RATIO				0.067f // Voor nu H2A want eva niet bekend
+
+#define H2A_MOTOR_SPEED_CONSTANT	248.0f			// rpm/v
+#define EVA_MOTOR_SPEED_CONSTANT	178.0f			// rpm/v
+
 #define CC2_MINIMUM_SPEED_KMH	15
 
 #define CC_REG_CYCLES		CYCLES_PER_SECOND /* Ticks between runs of the CC algorithm */
 #define H2A_CC_MAX_INTERVAL	(CYCLES_PER_SECOND / H2A_WHEEL_PULSE_PER_ROT) /* Do not attempt CC below ~5 km/h */
-#define EVA_CC_MAX_INTERVAL	(CYCLES_PER_SECOND / EVA_WHEEL_PULSE_PER_ROT) /* Do not attempt CC below ~5 km/h */
+#define EVA_CC_MAX_INTERVAL	(CYCLES_PER_SECOND / EVA_WHEEL_PULSE_PER_ROT) /* Do not attempt CC below ~5 km/h */ 
 #define CC_MAX_POWER		7
+#define REGBRAKE_LEVEL		8						
+
 #define CC_TURBO_BOOST		PIN3_bm
+#define REGBRAKE_PIN		PIN3_bm
 #define CC_DEFAULT_POWER	2
 #define CC_PINS				(PIN0_bm | PIN1_bm | PIN2_bm)
 
@@ -90,8 +99,8 @@ typedef struct {
 	int16_t speedSensorLastValidInterval;
 	uint32_t speedSensorPreviousValidEdgeTimestamp;
 
-	uint8_t selFPState, selCCState, selCC2State;
-	uint32_t selFPTimestamp, selCCTimestamp, selCC2Timestamp;
+	uint8_t selFPState, selCCState, selCC2State, selRegState;
+	uint32_t selFPTimestamp, selCCTimestamp, selCC2Timestamp, selRegTimestamp;
 
 	uint16_t pwmFrequency, pwmDutyCycle;
 
@@ -331,23 +340,19 @@ void receiveSpeedfromDebug(FILE *fp){
 
 	while(CanRead_Ctrl())
 	ReadByte_Ctrl();
-	
-	fprintf(fp, "\r\n# Enter target speed in [cm/s]:");
-	
+		
 	do {
 		inputChar = ReadByte_Ctrl();
 		if(isdigit(inputChar)) {
-			fprintf(fp, "%c", inputChar);
 			totalChar = 10 * totalChar + inputChar - '0';
 		}
 	} while(isdigit(inputChar));
 	
-	aTargetSpeed = (totalChar / 100.0f) * 3.6f;		// cm/s to km/h
 	
 	if(inputChar == 'a' || inputChar == 'A'){
-		fprintf(fp, "\r\n# Target speed set to %.2f km/h\n", aTargetSpeed);
+		aTargetSpeed = (totalChar / 1000.0f);		// m/h to km/h
 	} else{
-		fprintf(fp, "\r\n# Set target speed ABORTED");
+		aTargetSpeed = 0;
 	}
 
 	
@@ -814,17 +819,25 @@ static float GetProcessedSpeed(int32_t speedSensorPulseInterval, float wheelMete
 	}
 	else
 	res = 0.0f;
-	
 
 	return res;
 } /* GetProcessedSpeed */
 
+float GetSpeedfromMotorVoltage(void){	// Only for testing
+	float res;
+	
+	res = (sSensorDataSnapshot.motorVoltageFiltered / (65536.0f * sCal.motorVoltageScale)) * (I_AM_H2A ? H2A_MOTOR_SPEED_CONSTANT : EVA_MOTOR_SPEED_CONSTANT) * (I_AM_H2A ? H2A_GEAR_RATIO : EVA_GEAR_RATIO ) * WHEEL_MS_TO_KMH / (60.0f);
+	
+	if (res < SPEEDSENSOR_MIN_SPEED) res = 0;
+	
+	return res;
+}
 
 void PrintCSV_H2A(FILE *fp) {
 	/* Assume the calling code has already initiated a snapshot */
 	while(!(IsSnapshotDone())) ; /* Wait for the snapshot to be taken */
 
-	fprintf(fp, ">03|03:%.4f,%.3f,%.3f,%.2f,%.0f,%.3f,%.3f,%.2f,%.0f,%.3f,%.3f,%.1f,%.0f,%.3f,%.3f,%.1f,%.0f,%.2f,%.0f,%.0f,%.3f,%.2f,%.4f,%.4f,%d,%.3f,%d,%.3f,%d,%.3f,%d,%.3f,%d,%.3f,%.3f,",
+	fprintf(fp, ">03|03:%.4f,%.3f,%.3f,%.2f,%.0f,%.3f,%.3f,%.2f,%.0f,%.3f,%.3f,%.1f,%.0f,%.3f,%.3f,%.1f,%.0f,%.2f,%.0f,%.0f,%.3f,%.2f,%.4f,%.4f,%d,%.3f,%d,%.3f,%d,%.3f,%d,%.3f,%d,%.3f",
 		(float) sSessionCycleCountSnapshot / CYCLES_PER_SECOND,
 		sSensorDataSnapshot.adc.h2a.fcVoltageFiltered / (65536.0f * sCal.fcVoltageScale),
 		sSensorDataSnapshot.adc.h2a.fcCurrentFiltered / (65536.0f * sCal.fcCurrentScale),
@@ -858,8 +871,8 @@ void PrintCSV_H2A(FILE *fp) {
 		(int16_t)sSensorDataSnapshot.ccPower,
 		sSensorDataSnapshot.ccTargetSpeed ? (H2A_WHEEL_METER_PER_PULSE * WHEEL_MS_TO_KMH * CYCLES_PER_SECOND / (sSensorDataSnapshot.ccTargetSpeed  / 65536.0f)) : 0.0f,
 		(int16_t)!sSensorDataSnapshot.selCC2State,
-		((float) sSensorDataSnapshot.selCC2Timestamp / CYCLES_PER_SECOND),
-		aTargetSpeed);
+		((float) sSensorDataSnapshot.selCC2Timestamp / CYCLES_PER_SECOND)
+		);
 	
 } /* PrintCSV_H2A */
 
@@ -868,7 +881,7 @@ void PrintCSV_EVA(FILE *fp) {
 	/* Assume the calling code has already initiated a snapshot */	
 	while(!(IsSnapshotDone())) ; /* Wait for the snapshot to be taken */
 
-	fprintf(fp, ">04|05:%.4f,%.3f,%.3f,%.2f,%.2f,%.3f,%.3f,%.1f,%.0f,%.3f,%.3f,%.1f,%.0f,%.2f,%.0f,%.0f,%.3f,%.2f,%.4f,%.4f,%d,%.3f,%d,%.3f,%d,%.3f,%d,%.3f,",
+	fprintf(fp, ">04|06:%.4f,%.3f,%.3f,%.2f,%.2f,%.3f,%.3f,%.1f,%.0f,%.3f,%.3f,%.1f,%.0f,%.2f,%.0f,%.0f,%.3f,%.2f,%.4f,%.4f,%d,%.3f,%d,%.3f,%d,%.3f,%d,%.3f,%d,%.3f,%.3f,",
 		(float) sSessionCycleCountSnapshot / CYCLES_PER_SECOND,
 		sSensorDataSnapshot.adc.eva.angSenseFiltered / (65536.0f),
 		sSensorDataSnapshot.adc.eva.angFSFiltered / (65536.0f),
@@ -896,7 +909,11 @@ void PrintCSV_EVA(FILE *fp) {
 		(int16_t)sSensorDataSnapshot.ccPower,
 		sSensorDataSnapshot.ccTargetSpeed ? (EVA_WHEEL_METER_PER_PULSE * WHEEL_MS_TO_KMH * CYCLES_PER_SECOND / (sSensorDataSnapshot.ccTargetSpeed  / 65536.0f)) : 0.0f,
 		(int16_t)!sSensorDataSnapshot.selCC2State,
-		((float) sSensorDataSnapshot.selCC2Timestamp / CYCLES_PER_SECOND));
+		((float) sSensorDataSnapshot.selCC2Timestamp / CYCLES_PER_SECOND),
+		(int16_t)!sSensorDataSnapshot.selRegState,
+		((float) sSensorDataSnapshot.selRegTimestamp / CYCLES_PER_SECOND),
+		aTargetSpeed
+		);
 	
 } /* PrintCSV_EVA */
 
@@ -914,11 +931,11 @@ void PrintResetHeader(FILE *fp) {
 
 static tCoreAnalogSensorData sSensorData = { .speedSensorLastValidInterval = SPEEDSENSOR_MAX_INTERVAL };
 
-
 #define SET_CC_DRIVE(x) do { \
 	if((x) == 0) { PORTE.OUTCLR = CC_PINS | CC_TURBO_BOOST; } \
 	else if((x) == CC_MAX_POWER) { PORTE.OUTSET = CC_MAX_POWER; PORTE.OUTCLR = CC_TURBO_BOOST; } \
 	else if((x) == CC_TURBO_BOOST) { PORTE.OUTSET = CC_MAX_POWER | CC_TURBO_BOOST; } \
+	else if((x) == REGBRAKE_LEVEL) { PORTE.OUTSET = REGBRAKE_PIN; PORTE.OUTCLR = CC_PINS; } \
 	else { PORTE.OUTSET = ~(x) & CC_PINS;  PORTE.OUTCLR = CC_TURBO_BOOST | ((x) & CC_PINS); } \
 } while(0)
 
@@ -1001,7 +1018,7 @@ ISR(ADCA_CH0_vect) {
 
 	int16_t spRawSample, driverTempSample, motorVoltageSample, motorCurrentSample, inVoltageSample, inCurrentSample;
 	int32_t inPower, motorPower;
-	uint8_t selCCPin = PORTC.IN & PIN2_bm, selCC2Pin = PORTC.IN & PIN5_bm, selFPPin = PORTC.IN & PIN4_bm, pwmEn = !(PORTC.IN & PIN1_bm), pwm = PORTC.IN & PIN6_bm;
+	uint8_t selCCPin = PORTC.IN & PIN2_bm, selCC2Pin = PORTC.IN & PIN5_bm, selRegPin = PORTC.IN & PIN5_bm, selFPPin = PORTC.IN & PIN4_bm, pwmEn = !(PORTC.IN & PIN1_bm), pwm = PORTC.IN & PIN6_bm;
 	uint8_t curPWMCycles = TCC1.CNTL;
 	
 	if(I_AM_EVA_L || I_AM_EVA_R)
@@ -1036,7 +1053,8 @@ ISR(ADCA_CH0_vect) {
 		sSensorData.speedSensorLastValidInterval = sSessionCycleCount - sSensorData.speedSensorPreviousValidEdgeTimestamp;
 		
 	FILTER32(sSensorData.speedSensorLastValidInterval, sSensorData.speedSensorPulseInterval);
-
+	//sSensorData.speedSensorPulseInterval = (int32_t) ((I_AM_H2A ? H2A_WHEEL_METER_PER_PULSE : EVA_WHEEL_METER_PER_PULSE) * WHEEL_MS_TO_KMH * CYCLES_PER_SECOND) / (GetSpeedfromMotorVoltage() / 65536.0f);	// Alleen voor in de testopstelling
+	
 	while(!(ADCB.CH2.INTFLAGS & 0x01)) ;
 	ADCB.CH2.INTFLAGS = 0x01;
 	driverTempSample = ADCB.CH2RES;
@@ -1094,15 +1112,17 @@ ISR(ADCA_CH0_vect) {
 		sSensorData.selCCState = selCCPin;
 		sSensorData.selCCTimestamp = sSessionCycleCount;
 		/* Did CC just get enabled? */
-		if(!selCCPin && sSensorData.speedSensorPulseInterval < (((int32_t) (I_AM_H2A ? H2A_CC_MAX_INTERVAL : EVA_CC_MAX_INTERVAL)) << 16)) {
+		if(!selCCPin && ( (sSensorData.speedSensorPulseInterval < (((int32_t) (I_AM_H2A ? H2A_CC_MAX_INTERVAL : EVA_CC_MAX_INTERVAL)) << 16) || I_AM_EVA_AUTO) ) ) {		// Only activate when faster than minimum. Except for autonomous EVA
 			sCCIsOn = 1;
 			sSensorData.ccPower = CC_DEFAULT_POWER;
 			
-			if (I_AM_EVA){												// Autonomous take over. For now always EVA
-				sSensorData.ccTargetSpeed = (int32_t) (EVA_WHEEL_METER_PER_PULSE * WHEEL_MS_TO_KMH * CYCLES_PER_SECOND * 65536.0f) / aTargetSpeed;
+			if (I_AM_EVA_AUTO){	
+				sSensorData.ccTargetSpeed = (int32_t) (EVA_WHEEL_METER_PER_PULSE * WHEEL_MS_TO_KMH * CYCLES_PER_SECOND * 65536.0f) / aTargetSpeed; 	// Set ccTargetSpeed to aTargetSpeed for autonomous eva
+				sCCPrevPulseInterval = sSensorData.speedSensorPulseInterval;
 			} else {
-				sCCPrevPulseInterval = sSensorData.ccTargetSpeed = sSensorData.speedSensorPulseInterval;
+				sCCPrevPulseInterval = sSensorData.ccTargetSpeed = sSensorData.speedSensorPulseInterval;		// Set target speed to current speed
 			}
+			
 			
 			sCCRunTimer = CC_REG_CYCLES;
 			SET_CC_DRIVE(sSensorData.ccPower);
@@ -1110,11 +1130,19 @@ ISR(ADCA_CH0_vect) {
 		else
 			sCCIsOn = 0;
 	}
+	
+	if((sSensorData.selRegState != selRegPin) && I_AM_EVA_AUTO) {				// Not tested
+ 		sSensorData.selRegState = selRegPin;
+ 		sSensorData.selRegTimestamp = sSessionCycleCount;
+		//Did Regbraking just get enabled?
+		if(!selRegPin) SET_CC_DRIVE(REGBRAKE_LEVEL);
+		else SET_CC_DRIVE(0);
+ 	}
 
-	if(sSensorData.selCC2State != selCC2Pin) {
+	if((sSensorData.selCC2State != selCC2Pin) && !I_AM_EVA_AUTO) {
 		sSensorData.selCC2State = selCC2Pin;
 		sSensorData.selCC2Timestamp = sSessionCycleCount;
-		/* Did CC2 just get enabled? */
+		//Did CC2 just get enabled?
 		if(!selCC2Pin) {
 			sCCIsOn = 1;
 			sCCPrevPulseInterval = sSensorData.speedSensorPulseInterval;
@@ -1132,8 +1160,10 @@ ISR(ADCA_CH0_vect) {
 		else
 			sCCIsOn = 0;
 	}
-	
+
 	if(sCCIsOn && !--sCCRunTimer) {
+		if(I_AM_EVA_AUTO) sSensorData.ccTargetSpeed = (int32_t) (EVA_WHEEL_METER_PER_PULSE * WHEEL_MS_TO_KMH * CYCLES_PER_SECOND * 65536.0f) / aTargetSpeed;	// Live update targetspeed
+		
 		if(!selCC2Pin && sCC2TargetSpeedUpdate) {
 			sSensorData.ccTargetSpeed = sCC2TargetSpeed;
 			// Possibly adjust power levels here too, for faster convergence?
@@ -1151,6 +1181,7 @@ ISR(ADCA_CH0_vect) {
 		sCCRunTimer = CC_REG_CYCLES;
 		sCCPrevPulseInterval = sSensorData.speedSensorPulseInterval;
 	}
+
 	
 	if(sTakeSnapshot485) {
 		sSensorDataSnapshot485 = sSensorData;
