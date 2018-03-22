@@ -99,8 +99,8 @@ typedef struct {
 	int16_t speedSensorLastValidInterval;
 	uint32_t speedSensorPreviousValidEdgeTimestamp;
 
-	uint8_t selFPState, selCCState, selCC2State, selRegState;
-	uint32_t selFPTimestamp, selCCTimestamp, selCC2Timestamp, selRegTimestamp;
+	uint8_t selFPState, selCCState, selCC2State;
+	uint32_t selFPTimestamp, selCCTimestamp, selCC2Timestamp;
 
 	uint16_t pwmFrequency, pwmDutyCycle;
 
@@ -881,7 +881,7 @@ void PrintCSV_EVA(FILE *fp) {
 	/* Assume the calling code has already initiated a snapshot */	
 	while(!(IsSnapshotDone())) ; /* Wait for the snapshot to be taken */
 
-	fprintf(fp, ">04|06:%.4f,%.3f,%.3f,%.2f,%.2f,%.3f,%.3f,%.1f,%.0f,%.3f,%.3f,%.1f,%.0f,%.2f,%.0f,%.0f,%.3f,%.2f,%.4f,%.4f,%d,%.3f,%d,%.3f,%d,%.3f,%d,%.3f,%d,%.3f,%.3f,",
+	fprintf(fp, ">04|05:%.4f,%.3f,%.3f,%.2f,%.2f,%.3f,%.3f,%.1f,%.0f,%.3f,%.3f,%.1f,%.0f,%.2f,%.0f,%.0f,%.3f,%.2f,%.4f,%.4f,%d,%.3f,%d,%.3f,%d,%.3f,%d,%.3f,",
 		(float) sSessionCycleCountSnapshot / CYCLES_PER_SECOND,
 		sSensorDataSnapshot.adc.eva.angSenseFiltered / (65536.0f),
 		sSensorDataSnapshot.adc.eva.angFSFiltered / (65536.0f),
@@ -909,10 +909,7 @@ void PrintCSV_EVA(FILE *fp) {
 		(int16_t)sSensorDataSnapshot.ccPower,
 		sSensorDataSnapshot.ccTargetSpeed ? (EVA_WHEEL_METER_PER_PULSE * WHEEL_MS_TO_KMH * CYCLES_PER_SECOND / (sSensorDataSnapshot.ccTargetSpeed  / 65536.0f)) : 0.0f,
 		(int16_t)!sSensorDataSnapshot.selCC2State,
-		((float) sSensorDataSnapshot.selCC2Timestamp / CYCLES_PER_SECOND),
-		(int16_t)!sSensorDataSnapshot.selRegState,
-		((float) sSensorDataSnapshot.selRegTimestamp / CYCLES_PER_SECOND),
-		aTargetSpeed
+		((float) sSensorDataSnapshot.selCC2Timestamp / CYCLES_PER_SECOND)
 		);
 	
 } /* PrintCSV_EVA */
@@ -1018,7 +1015,7 @@ ISR(ADCA_CH0_vect) {
 
 	int16_t spRawSample, driverTempSample, motorVoltageSample, motorCurrentSample, inVoltageSample, inCurrentSample;
 	int32_t inPower, motorPower;
-	uint8_t selCCPin = PORTC.IN & PIN2_bm, selCC2Pin = PORTC.IN & PIN5_bm, selRegPin = PORTC.IN & PIN5_bm, selFPPin = PORTC.IN & PIN4_bm, pwmEn = !(PORTC.IN & PIN1_bm), pwm = PORTC.IN & PIN6_bm;
+	uint8_t selCCPin = PORTC.IN & PIN2_bm, selCC2Pin = PORTC.IN & PIN5_bm, selFPPin = PORTC.IN & PIN4_bm, pwmEn = !(PORTC.IN & PIN1_bm), pwm = PORTC.IN & PIN6_bm;
 	uint8_t curPWMCycles = TCC1.CNTL;
 	
 	if(I_AM_EVA_L || I_AM_EVA_R)
@@ -1131,19 +1128,14 @@ ISR(ADCA_CH0_vect) {
 			sCCIsOn = 0;
 	}
 	
-	if((sSensorData.selRegState != selRegPin) && I_AM_EVA_AUTO) {				// Not tested
- 		sSensorData.selRegState = selRegPin;
- 		sSensorData.selRegTimestamp = sSessionCycleCount;
-		//Did Regbraking just get enabled?
-		if(!selRegPin) SET_CC_DRIVE(REGBRAKE_LEVEL);
-		else SET_CC_DRIVE(0);
- 	}
-
-	if((sSensorData.selCC2State != selCC2Pin) && !I_AM_EVA_AUTO) {
+	if(sSensorData.selCC2State != selCC2Pin) {
 		sSensorData.selCC2State = selCC2Pin;
 		sSensorData.selCC2Timestamp = sSessionCycleCount;
-		//Did CC2 just get enabled?
-		if(!selCC2Pin) {
+		//Did RegBraking just get enabled?
+		if(!selCC2Pin && I_AM_EVA) SET_CC_DRIVE(REGBRAKE_LEVEL)		
+		
+		//Did CC2 (boost) just get enabled? Only H2A
+		if(!selCC2Pin && I_AM_H2A) {
 			sCCIsOn = 1;
 			sCCPrevPulseInterval = sSensorData.speedSensorPulseInterval;
 			if(sSensorData.speedSensorPulseInterval > sCC2MinSpeed) { // Driving below minimum initial CC2 speed limit
