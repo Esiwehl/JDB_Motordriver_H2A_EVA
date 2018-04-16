@@ -50,7 +50,7 @@
 #define H2A_CC_MAX_INTERVAL	(CYCLES_PER_SECOND / H2A_WHEEL_PULSE_PER_ROT) /* Do not attempt CC below ~5 km/h */
 #define EVA_CC_MAX_INTERVAL	(CYCLES_PER_SECOND / EVA_WHEEL_PULSE_PER_ROT) /* Do not attempt CC below ~5 km/h */ 
 #define CC_MAX_POWER		7
-#define REGBRAKE_LEVEL		8						
+#define REGBRAKE_LEVEL		8				// 8 wasn't used before				
 
 #define CC_TURBO_BOOST		PIN3_bm
 #define REGBRAKE_PIN		PIN3_bm
@@ -1109,7 +1109,7 @@ ISR(ADCA_CH0_vect) {
 		sSensorData.selCCState = selCCPin;
 		sSensorData.selCCTimestamp = sSessionCycleCount;
 		/* Did CC just get enabled? */
-		if(!selCCPin && ( (sSensorData.speedSensorPulseInterval < (((int32_t) (I_AM_H2A ? H2A_CC_MAX_INTERVAL : EVA_CC_MAX_INTERVAL)) << 16) || I_AM_EVA_AUTO) ) ) {		// Only activate when faster than minimum. Except for autonomous EVA
+		if(!selCCPin && ( (sSensorData.speedSensorPulseInterval < (((int32_t) (I_AM_H2A ? H2A_CC_MAX_INTERVAL : EVA_CC_MAX_INTERVAL)) << 16) ) || I_AM_EVA_AUTO ) ) {		// Only activate when faster than minimum. Except for autonomous EVA
 			sCCIsOn = 1;
 			sSensorData.ccPower = CC_DEFAULT_POWER;
 			
@@ -1132,7 +1132,7 @@ ISR(ADCA_CH0_vect) {
 		sSensorData.selCC2State = selCC2Pin;
 		sSensorData.selCC2Timestamp = sSessionCycleCount;
 		//Did RegBraking just get enabled?
-		if(!selCC2Pin && I_AM_EVA) SET_CC_DRIVE(REGBRAKE_LEVEL)		
+		if(!selCC2Pin && I_AM_EVA) SET_CC_DRIVE(REGBRAKE_LEVEL);	
 		
 		//Did CC2 (boost) just get enabled? Only H2A
 		if(!selCC2Pin && I_AM_H2A) {

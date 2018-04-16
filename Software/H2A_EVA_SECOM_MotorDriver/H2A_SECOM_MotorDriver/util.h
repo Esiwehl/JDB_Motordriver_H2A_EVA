@@ -19,7 +19,7 @@
 
 #define BOARDID (PORTD.IN & BOARDID_bm)
 
-#define AUTONOMOUS_MODE 1
+#define AUTONOMOUS_MODE 0
 
 #define I_AM_H2A	(BOARDID == BOARDID_H2A)
 #define I_AM_EVA	(!I_AM_H2A)
