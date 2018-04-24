@@ -66,6 +66,8 @@
 #define PWM_FREQ_SCALE ((1<<PWM_FREQ_FILTER_SHIFT) / (float) CYCLES_PER_SECOND)
 #define PWM_DC_SCALE (PWM_DC_FS / 100.0f)
 
+#define MINMAX_RESET_PERIOD CYCLES_PER_SECOND
+
 
 typedef struct {
 	int32_t fcVoltageFiltered, fcCurrentFiltered, scVoltageFiltered, scCurrentFiltered;
@@ -92,6 +94,10 @@ typedef struct {
 	} adc;
 	
 	int32_t driverTempFiltered, motorVoltageFiltered, motorCurrentFiltered, inVoltageFiltered, inCurrentFiltered;
+	int32_t inVoltageMin, inVoltageMax;
+	int32_t inCurrentMin, inCurrentMax;
+	int32_t inVoltageMinTimestamp, inVoltageMaxTimestamp;
+	int32_t inCurrentMinTimestamp, inCurrentMaxTimestamp;
 	int32_t motorPowerFiltered, inPowerFiltered;
 	int64_t motorEnergy, inEnergy;
 	int32_t speedSensorPulseInterval;
@@ -880,8 +886,8 @@ void PrintCSV_H2A(FILE *fp) {
 void PrintCSV_EVA(FILE *fp) {
 	/* Assume the calling code has already initiated a snapshot */	
 	while(!(IsSnapshotDone())) ; /* Wait for the snapshot to be taken */
-
-	fprintf(fp, ">04|05:%.4f,%.3f,%.3f,%.2f,%.2f,%.3f,%.3f,%.1f,%.0f,%.3f,%.3f,%.1f,%.0f,%.2f,%.0f,%.0f,%.3f,%.2f,%.4f,%.4f,%d,%.3f,%d,%.3f,%d,%.3f,%d,%.3f,",
+	/* NOG NIET OFFICIELE 04|06 DATAFORMAAT! Bezig met minimale en maximale waarden!  WIP*/
+	fprintf(fp, ">04|06:%.4f,%.3f,%.3f,%.2f,%.2f,%.3f,%.3f,%.1f,%.0f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.1f,%.0f,%.2f,%.0f,%.0f,%.3f,%.2f,%.4f,%.4f,%d,%.3f,%d,%.3f,%d,%.3f,%d,%.3f,",
 		(float) sSessionCycleCountSnapshot / CYCLES_PER_SECOND,
 		sSensorDataSnapshot.adc.eva.angSenseFiltered / (65536.0f),
 		sSensorDataSnapshot.adc.eva.angFSFiltered / (65536.0f),
@@ -892,7 +898,15 @@ void PrintCSV_EVA(FILE *fp) {
 		sSensorDataSnapshot.motorPowerFiltered / (256.0f * sCal.motorVoltageScale * sCal.motorCurrentScale),
 		sSensorDataSnapshot.motorEnergy / (CYCLES_PER_SECOND * sCal.motorVoltageScale * sCal.motorCurrentScale),
 		sSensorDataSnapshot.inVoltageFiltered / (65536.0f * sCal.inVoltageScale),
+		(float) sSensorDataSnapshot.inVoltageMin / (sCal.inVoltageScale),
+		((float) sSensorDataSnapshot.inVoltageMinTimestamp / CYCLES_PER_SECOND),
+		(float) sSensorDataSnapshot.inVoltageMax / (sCal.inVoltageScale),
+		((float) sSensorDataSnapshot.inVoltageMaxTimestamp / CYCLES_PER_SECOND),
 		sSensorDataSnapshot.inCurrentFiltered / (65536.0f * sCal.inCurrentScale),
+		(float) sSensorDataSnapshot.inCurrentMin / (sCal.inCurrentScale),
+		((float) sSensorDataSnapshot.inCurrentMinTimestamp / CYCLES_PER_SECOND),
+		(float) sSensorDataSnapshot.inCurrentMax / (sCal.inCurrentScale),
+		((float) sSensorDataSnapshot.inCurrentMaxTimestamp / CYCLES_PER_SECOND),
 		sSensorDataSnapshot.inPowerFiltered / (256.0f * sCal.inVoltageScale * sCal.inCurrentScale),
 		sSensorDataSnapshot.inEnergy / (CYCLES_PER_SECOND * sCal.inVoltageScale * sCal.inCurrentScale),
 		sSensorDataSnapshot.driverTempFiltered / (65536.0f * 10.0f),
@@ -914,6 +928,41 @@ void PrintCSV_EVA(FILE *fp) {
 	
 } /* PrintCSV_EVA */
 
+// void PrintCSV_EVA(FILE *fp) {
+// 	/* Assume the calling code has already initiated a snapshot */
+// 	while(!(IsSnapshotDone())) ; /* Wait for the snapshot to be taken */
+// 	fprintf(fp, ">04|05:%.4f,%.3f,%.3f,%.2f,%.2f,%.3f,%.3f,%.1f,%.0f,%.3f,%.3f,%.1f,%.0f,%.2f,%.0f,%.0f,%.3f,%.2f,%.4f,%.4f,%d,%.3f,%d,%.3f,%d,%.3f,%d,%.3f,",
+// 	(float) sSessionCycleCountSnapshot / CYCLES_PER_SECOND,
+// 	sSensorDataSnapshot.adc.eva.angSenseFiltered / (65536.0f),
+// 	sSensorDataSnapshot.adc.eva.angFSFiltered / (65536.0f),
+// 	sSensorDataSnapshot.adc.eva.motorTempFrontFiltered / (65536.0f * MOTORTEMP_SCALE),
+// 	sSensorDataSnapshot.adc.eva.motorTempRearFiltered / (65536.0f * MOTORTEMP_SCALE),
+// 	sSensorDataSnapshot.motorVoltageFiltered / (65536.0f * sCal.motorVoltageScale),
+// 	sSensorDataSnapshot.motorCurrentFiltered / (65536.0f * sCal.motorCurrentScale),
+// 	sSensorDataSnapshot.motorPowerFiltered / (256.0f * sCal.motorVoltageScale * sCal.motorCurrentScale),
+// 	sSensorDataSnapshot.motorEnergy / (CYCLES_PER_SECOND * sCal.motorVoltageScale * sCal.motorCurrentScale),
+// 	sSensorDataSnapshot.inVoltageFiltered / (65536.0f * sCal.inVoltageScale),
+// 	sSensorDataSnapshot.inCurrentFiltered / (65536.0f * sCal.inCurrentScale),
+// 	sSensorDataSnapshot.inPowerFiltered / (256.0f * sCal.inVoltageScale * sCal.inCurrentScale),
+// 	sSensorDataSnapshot.inEnergy / (CYCLES_PER_SECOND * sCal.inVoltageScale * sCal.inCurrentScale),
+// 	sSensorDataSnapshot.driverTempFiltered / (65536.0f * 10.0f),
+// 	sSensorDataSnapshot.pwmFrequency / (256.0f * PWM_FREQ_SCALE),
+// 	sSensorDataSnapshot.pwmDutyCycle / (256.0f * PWM_DC_SCALE),
+// 	GetProcessedSpeed(sSensorDataSnapshot.speedSensorPulseInterval, EVA_WHEEL_METER_PER_PULSE),
+// 	sSensorDataSnapshot.speedSensorPositivePulsesSeen * EVA_WHEEL_METER_PER_PULSE,
+// 	(float) sSensorDataSnapshot.speedSensorLastValidInterval / CYCLES_PER_SECOND,
+// 	(float) sSensorDataSnapshot.speedSensorPreviousValidEdgeTimestamp / CYCLES_PER_SECOND,
+// 	(int16_t)!sSensorDataSnapshot.selFPState,
+// 	((float) sSensorDataSnapshot.selFPTimestamp / CYCLES_PER_SECOND),
+// 	(int16_t)!sSensorDataSnapshot.selCCState,
+// 	((float) sSensorDataSnapshot.selCCTimestamp / CYCLES_PER_SECOND),
+// 	(int16_t)sSensorDataSnapshot.ccPower,
+// 	sSensorDataSnapshot.ccTargetSpeed ? (EVA_WHEEL_METER_PER_PULSE * WHEEL_MS_TO_KMH * CYCLES_PER_SECOND / (sSensorDataSnapshot.ccTargetSpeed  / 65536.0f)) : 0.0f,
+// 	(int16_t)!sSensorDataSnapshot.selCC2State,
+// 	((float) sSensorDataSnapshot.selCC2Timestamp / CYCLES_PER_SECOND)
+// 	);
+// 	
+// 	} /* PrintCSV_EVA */
 
 void PrintResetHeader(FILE *fp) {
 	
@@ -926,7 +975,7 @@ void PrintResetHeader(FILE *fp) {
 } /* PrintResetHeader */
 
 
-static tCoreAnalogSensorData sSensorData = { .speedSensorLastValidInterval = SPEEDSENSOR_MAX_INTERVAL };
+static tCoreAnalogSensorData sSensorData = { .speedSensorLastValidInterval = SPEEDSENSOR_MAX_INTERVAL, .inVoltageMin = 100, .inCurrentMin = 100 };
 
 #define SET_CC_DRIVE(x) do { \
 	if((x) == 0) { PORTE.OUTCLR = CC_PINS | CC_TURBO_BOOST; } \
@@ -1061,11 +1110,46 @@ ISR(ADCA_CH0_vect) {
 	ADCA.CH3.INTFLAGS = 0x01;
 	while(!(ADCB.CH3.INTFLAGS & 0x01)) ;
 	ADCB.CH3.INTFLAGS = 0x01;
+	
+	
 	if(sSamplingVin) {
 		inVoltageSample = ADCA.CH3RES - sCal.inVoltageOffset;
+		// Hold min/max value for MINMAX_RESET_PERIOD
+		if(inVoltageSample < sSensorData.inVoltageMin){
+			sSensorData.inVoltageMin = inVoltageSample;
+			sSensorData.inVoltageMinTimestamp = sSessionCycleCount;
+		} else if(sSessionCycleCount - sSensorData.inVoltageMinTimestamp >= MINMAX_RESET_PERIOD){
+			sSensorData.inVoltageMin = inVoltageSample;
+			sSensorData.inVoltageMinTimestamp = sSessionCycleCount;
+		}	
+			
+		if(inVoltageSample > sSensorData.inVoltageMax){
+			sSensorData.inVoltageMax = inVoltageSample;
+			sSensorData.inVoltageMaxTimestamp = sSessionCycleCount;
+		} else if(sSessionCycleCount - sSensorData.inVoltageMaxTimestamp >= MINMAX_RESET_PERIOD){
+			sSensorData.inVoltageMax = inVoltageSample;
+			sSensorData.inVoltageMaxTimestamp = sSessionCycleCount;
+		}
 		FILTER32(inVoltageSample, sSensorData.inVoltageFiltered);
+		
 		inCurrentSample = ADCB.CH3RES - sCal.inCurrentOffset;
+		// Hold min/max value for MINMAX_RESET_PERIOD
+		if(inCurrentSample < sSensorData.inCurrentMin){
+			sSensorData.inCurrentMin = inCurrentSample;
+			sSensorData.inCurrentMinTimestamp = sSessionCycleCount;
+			} else if(sSessionCycleCount - sSensorData.inCurrentMinTimestamp >= MINMAX_RESET_PERIOD){
+			sSensorData.inCurrentMin = inCurrentSample;
+			sSensorData.inCurrentMinTimestamp = sSessionCycleCount;
+		}
+		if(inCurrentSample > sSensorData.inCurrentMax){
+			sSensorData.inCurrentMax = inCurrentSample;
+			sSensorData.inCurrentMaxTimestamp = sSessionCycleCount;
+			} else if(sSessionCycleCount - sSensorData.inCurrentMaxTimestamp >= MINMAX_RESET_PERIOD){
+			sSensorData.inCurrentMax = inCurrentSample;
+			sSensorData.inCurrentMaxTimestamp = sSessionCycleCount;
+		}
 		FILTER32(inCurrentSample, sSensorData.inCurrentFiltered);
+		
 		inPower = ((int32_t) inVoltageSample) * ((int32_t) inCurrentSample);
 		FILTER32PWR(inPower, sSensorData.inPowerFiltered);
 		sSensorData.inEnergy +=  2 * inPower;
