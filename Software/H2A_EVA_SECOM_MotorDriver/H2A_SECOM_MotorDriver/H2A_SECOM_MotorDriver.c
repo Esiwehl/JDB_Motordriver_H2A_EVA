@@ -77,16 +77,16 @@ int main(void)
 					/* ESC -- sync character for avrdude. The programmer is trying to talk to us, so reset the chip */
 					CCPWrite( &RST.CTRL, RST_SWRST_bm );
 					break; 
-				case 's':
+			/*	case 's':			// Probably not going to be used
 				case 'S':
 					if (I_AM_EVA_AUTO) receiveSpeedfromDebug(&gCtrl_IO);		// Receive target speed from debug when receiving char 's' or 'S'
 					break;
-				case 'c':
+			*/	case 'c':
 				case 'C':
 					CalibrateChannel(&gCtrl_IO);
 					break;
 			}
-			escTimeoutActive = 0;			//  Why wait a second before continuing logging? Was '1'
+			escTimeoutActive = 1;
 			prev = GetSessionCycleCount();
 		}
 		now = GetSessionCycleCount();
@@ -130,6 +130,12 @@ int main(void)
 				default:
 					debugPrintstate = DEBUGPRINT_START;
 			}
+		}
+		/* Green led to show if Vin = OK */
+		if(PORTC.IN & PIN3_bm){
+			PORTF.OUTCLR = PIN6_bm;
+		} else{
+			PORTF.OUTSET = PIN6_bm;
 		}
 
 		/* Handle the slave code */
