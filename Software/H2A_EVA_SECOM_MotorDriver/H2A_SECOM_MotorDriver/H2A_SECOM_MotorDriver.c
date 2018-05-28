@@ -76,12 +76,8 @@ int main(void)
 				case 0x1B:
 					/* ESC -- sync character for avrdude. The programmer is trying to talk to us, so reset the chip */
 					CCPWrite( &RST.CTRL, RST_SWRST_bm );
-					break; 
-			/*	case 's':			// Probably not going to be used
-				case 'S':
-					if (I_AM_EVA_AUTO) receiveSpeedfromDebug(&gCtrl_IO);		// Receive target speed from debug when receiving char 's' or 'S'
 					break;
-			*/	case 'c':
+				case 'c':
 				case 'C':
 					CalibrateChannel(&gCtrl_IO);
 					break;
@@ -131,7 +127,7 @@ int main(void)
 					debugPrintstate = DEBUGPRINT_START;
 			}
 		}
-		/* Green led to show if Vin = OK */
+		/* Green led to show if Vin = OK Note that this led is only available on rev 5 */
 		if(PORTC.IN & PIN3_bm){
 			PORTF.OUTCLR = PIN6_bm;
 		} else{

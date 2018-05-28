@@ -883,52 +883,15 @@ void PrintCSV_H2A(FILE *fp) {
 } /* PrintCSV_H2A */
 
 
-// void PrintCSV_EVA(FILE *fp) {
-// 	/* Assume the calling code has already initiated a snapshot */	
-// 	while(!(IsSnapshotDone())) ; /* Wait for the snapshot to be taken */
-// 	/* NOG NIET OFFICIELE 04|06 DATAFORMAAT! Bezig met minimale en maximale waarden!  WIP*/
-//	fprintf(fp, ">04|06:%.4f,%.3f,%.3f,%.2f,%.2f,%.3f,%.3f,%.1f,%.0f,%.3f,%.3f,%.1f,%.0f,%.2f,%.0f,%.0f,%.3f,%.2f,%.4f,%.4f,%d,%.3f,%d,%.3f,%d,%.3f,%d,%.3f,",
-// 	(float) sSessionCycleCountSnapshot / CYCLES_PER_SECOND,
-// 	(float) sSensorDataSnapshot.inVoltageMin / (sCal.inVoltageScale),
-// 	(float) sSensorDataSnapshot.inVoltageMax / (sCal.inVoltageScale),
-// 	(float) sSensorDataSnapshot.inCurrentMin / (sCal.inCurrentScale),
-// 	(float) sSensorDataSnapshot.inCurrentMax / (sCal.inCurrentScale),
-// 	sSensorDataSnapshot.motorVoltageFiltered / (65536.0f * sCal.motorVoltageScale),
-// 	sSensorDataSnapshot.motorCurrentFiltered / (65536.0f * sCal.motorCurrentScale),
-// 	sSensorDataSnapshot.motorPowerFiltered / (256.0f * sCal.motorVoltageScale * sCal.motorCurrentScale),
-// 	sSensorDataSnapshot.motorEnergy / (CYCLES_PER_SECOND * sCal.motorVoltageScale * sCal.motorCurrentScale),
-// 	sSensorDataSnapshot.inVoltageFiltered / (65536.0f * sCal.inVoltageScale),
-// 	sSensorDataSnapshot.inCurrentFiltered / (65536.0f * sCal.inCurrentScale),
-// 	sSensorDataSnapshot.inPowerFiltered / (256.0f * sCal.inVoltageScale * sCal.inCurrentScale),
-// 	sSensorDataSnapshot.inEnergy / (CYCLES_PER_SECOND * sCal.inVoltageScale * sCal.inCurrentScale),
-// 	sSensorDataSnapshot.driverTempFiltered / (65536.0f * 10.0f),
-// 	sSensorDataSnapshot.pwmFrequency / (256.0f * PWM_FREQ_SCALE),
-// 	sSensorDataSnapshot.pwmDutyCycle / (256.0f * PWM_DC_SCALE),
-// 	GetProcessedSpeed(sSensorDataSnapshot.speedSensorPulseInterval, EVA_WHEEL_METER_PER_PULSE),
-// 	sSensorDataSnapshot.speedSensorPositivePulsesSeen * EVA_WHEEL_METER_PER_PULSE,
-// 	(float) sSensorDataSnapshot.speedSensorLastValidInterval / CYCLES_PER_SECOND,
-// 	(float) sSensorDataSnapshot.speedSensorPreviousValidEdgeTimestamp / CYCLES_PER_SECOND,
-// 	(int16_t)!sSensorDataSnapshot.selFPState,
-// 	((float) sSensorDataSnapshot.selFPTimestamp / CYCLES_PER_SECOND),
-// 	(int16_t)!sSensorDataSnapshot.selCCState,
-// 	((float) sSensorDataSnapshot.selCCTimestamp / CYCLES_PER_SECOND),
-// 	(int16_t)sSensorDataSnapshot.ccPower,
-// 	sSensorDataSnapshot.ccTargetSpeed ? (EVA_WHEEL_METER_PER_PULSE * WHEEL_MS_TO_KMH * CYCLES_PER_SECOND / (sSensorDataSnapshot.ccTargetSpeed  / 65536.0f)) : 0.0f,
-// 	(int16_t)!sSensorDataSnapshot.selCC2State,
-// 	((float) sSensorDataSnapshot.selCC2Timestamp / CYCLES_PER_SECOND)
-// 	);
-// 	
-// } /* PrintCSV_EVA */
-
 void PrintCSV_EVA(FILE *fp) {
-	/* Assume the calling code has already initiated a snapshot */
+	/* Assume the calling code has already initiated a snapshot */	
 	while(!(IsSnapshotDone())) ; /* Wait for the snapshot to be taken */
-	fprintf(fp, ">04|05:%.4f,%.3f,%.3f,%.2f,%.2f,%.3f,%.3f,%.1f,%.0f,%.3f,%.3f,%.1f,%.0f,%.2f,%.0f,%.0f,%.3f,%.2f,%.4f,%.4f,%d,%.3f,%d,%.3f,%d,%.3f,%d,%.3f,",
+	fprintf(fp, ">04|06:%.4f,%.3f,%.3f,%.2f,%.2f,%.3f,%.3f,%.1f,%.0f,%.3f,%.3f,%.1f,%.0f,%.2f,%.0f,%.0f,%.3f,%.2f,%.4f,%.4f,%d,%.3f,%d,%.3f,%d,%.3f,%d,%.3f,",
 	(float) sSessionCycleCountSnapshot / CYCLES_PER_SECOND,
-	sSensorDataSnapshot.adc.eva.angSenseFiltered / (65536.0f),
-	sSensorDataSnapshot.adc.eva.angFSFiltered / (65536.0f),
-	sSensorDataSnapshot.adc.eva.motorTempFrontFiltered / (65536.0f * MOTORTEMP_SCALE),
-	sSensorDataSnapshot.adc.eva.motorTempRearFiltered / (65536.0f * MOTORTEMP_SCALE),
+	(float) sSensorDataSnapshot.inVoltageMin / (sCal.inVoltageScale),
+	(float) sSensorDataSnapshot.inVoltageMax / (sCal.inVoltageScale),
+	(float) sSensorDataSnapshot.inCurrentMin / (sCal.inCurrentScale),
+	(float) sSensorDataSnapshot.inCurrentMax / (sCal.inCurrentScale),
 	sSensorDataSnapshot.motorVoltageFiltered / (65536.0f * sCal.motorVoltageScale),
 	sSensorDataSnapshot.motorCurrentFiltered / (65536.0f * sCal.motorCurrentScale),
 	sSensorDataSnapshot.motorPowerFiltered / (256.0f * sCal.motorVoltageScale * sCal.motorCurrentScale),
@@ -954,7 +917,43 @@ void PrintCSV_EVA(FILE *fp) {
 	((float) sSensorDataSnapshot.selCC2Timestamp / CYCLES_PER_SECOND)
 	);
 	
-	} /* PrintCSV_EVA */
+} /* PrintCSV_EVA */
+
+// void PrintCSV_EVA(FILE *fp) {
+// 	/* Assume the calling code has already initiated a snapshot */
+// 	while(!(IsSnapshotDone())) ; /* Wait for the snapshot to be taken */
+// 	fprintf(fp, ">04|05:%.4f,%.3f,%.3f,%.2f,%.2f,%.3f,%.3f,%.1f,%.0f,%.3f,%.3f,%.1f,%.0f,%.2f,%.0f,%.0f,%.3f,%.2f,%.4f,%.4f,%d,%.3f,%d,%.3f,%d,%.3f,%d,%.3f,",
+// 	(float) sSessionCycleCountSnapshot / CYCLES_PER_SECOND,
+// 	sSensorDataSnapshot.adc.eva.angSenseFiltered / (65536.0f),
+// 	sSensorDataSnapshot.adc.eva.angFSFiltered / (65536.0f),
+// 	sSensorDataSnapshot.adc.eva.motorTempFrontFiltered / (65536.0f * MOTORTEMP_SCALE),
+// 	sSensorDataSnapshot.adc.eva.motorTempRearFiltered / (65536.0f * MOTORTEMP_SCALE),
+// 	sSensorDataSnapshot.motorVoltageFiltered / (65536.0f * sCal.motorVoltageScale),
+// 	sSensorDataSnapshot.motorCurrentFiltered / (65536.0f * sCal.motorCurrentScale),
+// 	sSensorDataSnapshot.motorPowerFiltered / (256.0f * sCal.motorVoltageScale * sCal.motorCurrentScale),
+// 	sSensorDataSnapshot.motorEnergy / (CYCLES_PER_SECOND * sCal.motorVoltageScale * sCal.motorCurrentScale),
+// 	sSensorDataSnapshot.inVoltageFiltered / (65536.0f * sCal.inVoltageScale),
+// 	sSensorDataSnapshot.inCurrentFiltered / (65536.0f * sCal.inCurrentScale),
+// 	sSensorDataSnapshot.inPowerFiltered / (256.0f * sCal.inVoltageScale * sCal.inCurrentScale),
+// 	sSensorDataSnapshot.inEnergy / (CYCLES_PER_SECOND * sCal.inVoltageScale * sCal.inCurrentScale),
+// 	sSensorDataSnapshot.driverTempFiltered / (65536.0f * 10.0f),
+// 	sSensorDataSnapshot.pwmFrequency / (256.0f * PWM_FREQ_SCALE),
+// 	sSensorDataSnapshot.pwmDutyCycle / (256.0f * PWM_DC_SCALE),
+// 	GetProcessedSpeed(sSensorDataSnapshot.speedSensorPulseInterval, EVA_WHEEL_METER_PER_PULSE),
+// 	sSensorDataSnapshot.speedSensorPositivePulsesSeen * EVA_WHEEL_METER_PER_PULSE,
+// 	(float) sSensorDataSnapshot.speedSensorLastValidInterval / CYCLES_PER_SECOND,
+// 	(float) sSensorDataSnapshot.speedSensorPreviousValidEdgeTimestamp / CYCLES_PER_SECOND,
+// 	(int16_t)!sSensorDataSnapshot.selFPState,
+// 	((float) sSensorDataSnapshot.selFPTimestamp / CYCLES_PER_SECOND),
+// 	(int16_t)!sSensorDataSnapshot.selCCState,
+// 	((float) sSensorDataSnapshot.selCCTimestamp / CYCLES_PER_SECOND),
+// 	(int16_t)sSensorDataSnapshot.ccPower,
+// 	sSensorDataSnapshot.ccTargetSpeed ? (EVA_WHEEL_METER_PER_PULSE * WHEEL_MS_TO_KMH * CYCLES_PER_SECOND / (sSensorDataSnapshot.ccTargetSpeed  / 65536.0f)) : 0.0f,
+// 	(int16_t)!sSensorDataSnapshot.selCC2State,
+// 	((float) sSensorDataSnapshot.selCC2Timestamp / CYCLES_PER_SECOND)
+// 	);
+// 	
+// 	} /* PrintCSV_EVA */
 
 void PrintResetHeader(FILE *fp) {
 	
@@ -1185,17 +1184,12 @@ ISR(ADCA_CH0_vect) {
 		sSensorData.selCCState = selCCPin;
 		sSensorData.selCCTimestamp = sSessionCycleCount;
 		/* Did CC just get enabled? */
-		if(!selCCPin && ( (sSensorData.speedSensorPulseInterval < (((int32_t) (I_AM_H2A ? H2A_CC_MAX_INTERVAL : EVA_CC_MAX_INTERVAL)) << 16) ) || I_AM_EVA_AUTO ) ) {		// Only activate when faster than minimum. Except for autonomous EVA
+		if(!selCCPin &&  (sSensorData.speedSensorPulseInterval < (((int32_t) (I_AM_H2A ? H2A_CC_MAX_INTERVAL : EVA_CC_MAX_INTERVAL)) << 16) ) ) {		// Only activate when faster than minimum.
 			sCCIsOn = 1;
 			sSensorData.ccPower = CC_DEFAULT_POWER;
 			
-			if (I_AM_EVA_AUTO){	
-				sSensorData.ccTargetSpeed = (int32_t) (EVA_WHEEL_METER_PER_PULSE * WHEEL_MS_TO_KMH * CYCLES_PER_SECOND * 65536.0f) / aTargetSpeed; 	// Set ccTargetSpeed to aTargetSpeed for autonomous eva
-				sCCPrevPulseInterval = sSensorData.speedSensorPulseInterval;
-			} else {
-				sCCPrevPulseInterval = sSensorData.ccTargetSpeed = sSensorData.speedSensorPulseInterval;		// Set target speed to current speed
-			}
-			
+			sCCPrevPulseInterval = sSensorData.ccTargetSpeed = sSensorData.speedSensorPulseInterval;		// Set target speed to current speed
+						
 			
 			sCCRunTimer = CC_REG_CYCLES;
 			SET_CC_DRIVE(sSensorData.ccPower);
@@ -1230,7 +1224,6 @@ ISR(ADCA_CH0_vect) {
 	}
 
 	if(sCCIsOn && !--sCCRunTimer) {
-		if(I_AM_EVA_AUTO) sSensorData.ccTargetSpeed = (int32_t) (EVA_WHEEL_METER_PER_PULSE * WHEEL_MS_TO_KMH * CYCLES_PER_SECOND * 65536.0f) / aTargetSpeed;	// Live update targetspeed
 		
 		if(!selCC2Pin && sCC2TargetSpeedUpdate) {
 			sSensorData.ccTargetSpeed = sCC2TargetSpeed;
