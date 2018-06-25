@@ -23,6 +23,11 @@
 	DO_LC_RNG(rng);									\
 	filt += (((int32_t) (newData)) - (((int32_t) filt) >> 5) + (((int32_t) rng) >> 21)) >> 5; } while(0)
 
+//Rowan
+#define EARTH_RADIUS 6371e3
+#define DEG2RAD(x) ((x) * M_PI / 180.0)
+#define RAD2DEG(x) ((x) * 180.0 / M_PI)
+
 void InitCoreAnalog(void);
 void CalibrateChannel(FILE *fp);
 void receiveSpeedfromDebug(FILE *fp);

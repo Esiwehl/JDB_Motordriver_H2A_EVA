@@ -32,11 +32,14 @@
 
 #define H2A_WHEEL_METER_PER_ROT		1.488f
 #define EVA_WHEEL_METER_PER_ROT		1.753f
+#define BRAM_WHEEL_METER_PER_ROT	3.491f
 #define H2A_WHEEL_PULSE_PER_ROT		24
 #define EVA_WHEEL_PULSE_PER_ROT		64
+#define BRAM_WHEEL_PULSE_PER_ROT	64
 #define WHEEL_MS_TO_KMH				3.6f
 #define H2A_WHEEL_METER_PER_PULSE	(H2A_WHEEL_METER_PER_ROT / H2A_WHEEL_PULSE_PER_ROT)
 #define EVA_WHEEL_METER_PER_PULSE	(EVA_WHEEL_METER_PER_ROT / EVA_WHEEL_PULSE_PER_ROT)
+#define BRAM_WHEEL_METER_PER_PULSE	(BRAM_WHEEL_METER_PER_ROT / BRAM_WHEEL_PULSE_PER_ROT)
 
 #define	H2A_GEAR_RATIO				0.067f
 #define	EVA_GEAR_RATIO				0.067f // Voor nu H2A want eva niet bekend
@@ -68,6 +71,14 @@
 
 #define MINMAX_RESET_PERIOD CYCLES_PER_SECOND
 
+#define MASTERCC 1		// MASTER Cruise Conrol mode
+
+
+static volatile float afstandafgelegd, doelsnelheid;
+
+static volatile int loopvar = 0;
+static volatile uint8_t afstandsectoren[] = {0,20,30,70,80};				// CC Trigger punten. Afgelegde afstand in meters
+static volatile float snelheidpersector[] = {5,7,20,8,0};						// CC Trigger punten. Snelheid in km/h
 
 typedef struct {
 	int32_t fcVoltageFiltered, fcCurrentFiltered, scVoltageFiltered, scCurrentFiltered;
@@ -147,6 +158,70 @@ static volatile float aTargetSpeed;		// Variable for saving target speed receive
 
 
 /* Variables used to communicate between the interrupt routines */
+
+
+/* Master cruise control variables */
+typedef struct {
+	double lat;
+	double lon;
+} tRMC;
+
+static volatile tRMC cur_pos;
+static volatile tRMC *cur_posPtr = &cur_pos;
+static volatile tRMC *Point_Ptr;
+
+/* Master cruise control functions */
+static double Distance(const tRMC *orig, const tRMC *dest)
+{
+	double phi1 = DEG2RAD(orig->lat);
+	double phi2 = DEG2RAD(dest->lat);
+	double deltaphi = DEG2RAD(dest->lat - orig->lat);
+	double deltalambda = DEG2RAD(dest->lon - orig->lon);
+
+	double a = sin(deltaphi / 2.0) * sin(deltaphi / 2.0) + cos(phi1) * cos(phi2) * sin(deltalambda / 2) * sin(deltalambda / 2);
+	double c = 2.0 * atan2(sqrt(a), sqrt(1.0 - a));
+
+	return EARTH_RADIUS * c;
+} /* Distance */
+
+static double Bearing(const tRMC *orig, const tRMC *dest) {
+
+	double phi1 = DEG2RAD(orig->lat);
+	double phi2 = DEG2RAD(dest->lat);
+	double deltalambda = DEG2RAD(dest->lon - orig->lon);
+
+	double y = sin(deltalambda) * cos(phi2);
+	double x = cos(phi1) * sin(phi2) - sin(phi1) * cos(phi2) * cos(deltalambda);
+
+	double bearing = RAD2DEG(atan2(y, x));
+
+	return (bearing >= 0.0) ? bearing : bearing + 360.0;
+
+} /* Bearing */
+
+static double decimal_lat_or_long(char *input)
+{
+	char min_str[10];
+	int degrees = 0, i = 0;
+	char *minPtr = input, *degrPtr = input; //minPtr and degrPtr are the now both the first value of NMEA longitude/latitude
+	float decimal;
+	while (*minPtr != '.' && *minPtr != '\0') minPtr++; //find the dot in their string
+
+	minPtr = minPtr-2; //both longitude and latitude start their min 2 positions away from the dot
+
+	while (degrPtr != minPtr) {	//as long as the degrPtr isn't in the same position as minPtr, the number pointed to is part of the degree
+		degrees = (10 * degrees) + *degrPtr - '0';
+		degrPtr++;
+	}
+
+	while (*minPtr != '\0') min_str[i++] = *minPtr++; //fill the min_str
+	min_str[i] = '\0';
+	decimal = (float)(atof(min_str) / 60) + degrees; //decimal longitude or latitude is degrees + min/60
+
+	return decimal;
+}
+
+/* Master cruise control functions */
 
 
 /* Static functions */
@@ -864,8 +939,8 @@ void PrintCSV_H2A(FILE *fp) {
 		sSensorDataSnapshot.driverTempFiltered / (65536.0f * 10.0f),
 		sSensorDataSnapshot.pwmFrequency / (256.0f * PWM_FREQ_SCALE),
 		sSensorDataSnapshot.pwmDutyCycle / (256.0f * PWM_DC_SCALE),
-		GetProcessedSpeed(sSensorDataSnapshot.speedSensorPulseInterval, H2A_WHEEL_METER_PER_PULSE),
-		sSensorDataSnapshot.speedSensorPositivePulsesSeen * H2A_WHEEL_METER_PER_PULSE,
+		GetProcessedSpeed(sSensorDataSnapshot.speedSensorPulseInterval, BRAM_WHEEL_METER_PER_PULSE),															// BRAMS FIETS
+		sSensorDataSnapshot.speedSensorPositivePulsesSeen * BRAM_WHEEL_METER_PER_PULSE,																			// BRAMS FIETS
 		(float) sSensorDataSnapshot.speedSensorLastValidInterval / CYCLES_PER_SECOND,
 		(float) sSensorDataSnapshot.speedSensorPreviousValidEdgeTimestamp / CYCLES_PER_SECOND,
 		(int16_t)!!sSensorDataSnapshot.adc.h2a.idealDiodeState,
@@ -875,7 +950,7 @@ void PrintCSV_H2A(FILE *fp) {
 		(int16_t)!sSensorDataSnapshot.selCCState,
 		((float) sSensorDataSnapshot.selCCTimestamp / CYCLES_PER_SECOND),
 		(int16_t)sSensorDataSnapshot.ccPower,
-		sSensorDataSnapshot.ccTargetSpeed ? (H2A_WHEEL_METER_PER_PULSE * WHEEL_MS_TO_KMH * CYCLES_PER_SECOND / (sSensorDataSnapshot.ccTargetSpeed  / 65536.0f)) : 0.0f,
+		sSensorDataSnapshot.ccTargetSpeed ? (BRAM_WHEEL_METER_PER_PULSE * WHEEL_MS_TO_KMH * CYCLES_PER_SECOND / (sSensorDataSnapshot.ccTargetSpeed  / 65536.0f)) : 0.0f,  // BRAMS FIETS
 		(int16_t)!sSensorDataSnapshot.selCC2State,
 		((float) sSensorDataSnapshot.selCC2Timestamp / CYCLES_PER_SECOND)
 		);
@@ -886,7 +961,7 @@ void PrintCSV_H2A(FILE *fp) {
 void PrintCSV_EVA(FILE *fp) {
 	/* Assume the calling code has already initiated a snapshot */	
 	while(!(IsSnapshotDone())) ; /* Wait for the snapshot to be taken */
-	fprintf(fp, ">04|06:%.4f,%.3f,%.3f,%.2f,%.2f,%.3f,%.3f,%.1f,%.0f,%.3f,%.3f,%.1f,%.0f,%.2f,%.0f,%.0f,%.3f,%.2f,%.4f,%.4f,%d,%.3f,%d,%.3f,%d,%.3f,%d,%.3f,",
+	fprintf(fp, ">04|06:%.4f,%.3f,%.3f,%.3f,%.3f,%.3f,%.3f,%.1f,%.0f,%.3f,%.3f,%.1f,%.0f,%.2f,%.0f,%.0f,%.3f,%.2f,%.4f,%.4f,%d,%.3f,%d,%.3f,%d,%.3f,%d,%.3f,",
 	(float) sSessionCycleCountSnapshot / CYCLES_PER_SECOND,
 	(float) sSensorDataSnapshot.inVoltageMin / (sCal.inVoltageScale),
 	(float) sSensorDataSnapshot.inVoltageMax / (sCal.inVoltageScale),
@@ -922,6 +997,7 @@ void PrintCSV_EVA(FILE *fp) {
 // void PrintCSV_EVA(FILE *fp) {
 // 	/* Assume the calling code has already initiated a snapshot */
 // 	while(!(IsSnapshotDone())) ; /* Wait for the snapshot to be taken */
+//   
 // 	fprintf(fp, ">04|05:%.4f,%.3f,%.3f,%.2f,%.2f,%.3f,%.3f,%.1f,%.0f,%.3f,%.3f,%.1f,%.0f,%.2f,%.0f,%.0f,%.3f,%.2f,%.4f,%.4f,%d,%.3f,%d,%.3f,%d,%.3f,%d,%.3f,",
 // 	(float) sSessionCycleCountSnapshot / CYCLES_PER_SECOND,
 // 	sSensorDataSnapshot.adc.eva.angSenseFiltered / (65536.0f),
@@ -950,8 +1026,7 @@ void PrintCSV_EVA(FILE *fp) {
 // 	(int16_t)sSensorDataSnapshot.ccPower,
 // 	sSensorDataSnapshot.ccTargetSpeed ? (EVA_WHEEL_METER_PER_PULSE * WHEEL_MS_TO_KMH * CYCLES_PER_SECOND / (sSensorDataSnapshot.ccTargetSpeed  / 65536.0f)) : 0.0f,
 // 	(int16_t)!sSensorDataSnapshot.selCC2State,
-// 	((float) sSensorDataSnapshot.selCC2Timestamp / CYCLES_PER_SECOND)
-// 	);
+// 	((float) sSensorDataSnapshot.selCC2Timestamp / CYCLES_PER_SECOND));
 // 	
 // 	} /* PrintCSV_EVA */
 
@@ -1045,7 +1120,7 @@ ISR(ADCA_CH0_vect) {
 	static uint8_t sSamplingVin;
 	
 	static uint8_t sPrevPWMCycles;
-	
+
 	static uint8_t sCCIsOn;
 	static uint16_t sCCRunTimer;
 	
@@ -1180,16 +1255,26 @@ ISR(ADCA_CH0_vect) {
 		sSensorData.selFPTimestamp = sSessionCycleCount;
 	}
 	
+	/* MASTERCC Test */
+	if(MASTERCC) {
+		afstandafgelegd = sSensorDataSnapshot.speedSensorPositivePulsesSeen * BRAM_WHEEL_METER_PER_PULSE;
+		if (afstandafgelegd > afstandsectoren[loopvar]) {
+			doelsnelheid = snelheidpersector[loopvar++];
+		}
+		if (loopvar == sizeof(afstandsectoren)) sSensorData.ccTargetSpeed = 0;
+		else sSensorData.ccTargetSpeed = (int32_t) (BRAM_WHEEL_METER_PER_PULSE * WHEEL_MS_TO_KMH * CYCLES_PER_SECOND * 65536.0f) / doelsnelheid;
+	}
+	
+	
 	if(sSensorData.selCCState != selCCPin) {
 		sSensorData.selCCState = selCCPin;
 		sSensorData.selCCTimestamp = sSessionCycleCount;
 		/* Did CC just get enabled? */
-		if(!selCCPin &&  (sSensorData.speedSensorPulseInterval < (((int32_t) (I_AM_H2A ? H2A_CC_MAX_INTERVAL : EVA_CC_MAX_INTERVAL)) << 16) ) ) {		// Only activate when faster than minimum.
+		if(!selCCPin && ( (sSensorData.speedSensorPulseInterval < (((int32_t) (I_AM_H2A ? H2A_CC_MAX_INTERVAL : EVA_CC_MAX_INTERVAL)) << 16) ) || MASTERCC) ) {		// Only activate when faster than minimum.
 			sCCIsOn = 1;
 			sSensorData.ccPower = CC_DEFAULT_POWER;
 			
-			sCCPrevPulseInterval = sSensorData.ccTargetSpeed = sSensorData.speedSensorPulseInterval;		// Set target speed to current speed
-						
+			if(!MASTERCC)sCCPrevPulseInterval = sSensorData.ccTargetSpeed = sSensorData.speedSensorPulseInterval;
 			
 			sCCRunTimer = CC_REG_CYCLES;
 			SET_CC_DRIVE(sSensorData.ccPower);
@@ -1224,7 +1309,6 @@ ISR(ADCA_CH0_vect) {
 	}
 
 	if(sCCIsOn && !--sCCRunTimer) {
-		
 		if(!selCC2Pin && sCC2TargetSpeedUpdate) {
 			sSensorData.ccTargetSpeed = sCC2TargetSpeed;
 			// Possibly adjust power levels here too, for faster convergence?

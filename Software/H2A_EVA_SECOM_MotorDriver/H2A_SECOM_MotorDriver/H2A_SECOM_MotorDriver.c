@@ -22,12 +22,10 @@
 #include "md_readbussensors.h"
 #include "DataInPrivate.h"
 #include "util.h"
-#include "lowpower_macros_md.h"
 
 
 static void InitClocks(void);
 static void InitIO(void);
-void LOWPOWER_Init(void);
 
 
 
@@ -59,7 +57,6 @@ int main(void)
 	InitCoreAnalog();
 	InitIMU();
 	InitReadBussensors();
-	LOWPOWER_Init();
 	
 	set_sleep_mode(SLEEP_MODE_IDLE); // Set sleep mode to IDLE which is the only one that allows us to wake from TC overflow event interrupt
 
@@ -175,13 +172,4 @@ static void InitIO(void) {
 	
 	PORTF.DIR = PIN0_bm | PIN3_bm | PIN4_bm | PIN5_bm | PIN6_bm | PIN7_bm;
 	PORTF.OUTCLR = PIN3_bm | PIN4_bm | PIN5_bm;
-}
-
-void LOWPOWER_Init(void) {
-
-	DISABLE_GEN();
-	//DISABLE_TC(); //Timer counter?
-	DISABLE_COM();
-	DISABLE_ANLG();
-	
 }
