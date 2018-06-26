@@ -13,6 +13,7 @@
 
 #include "md_readbussensors.h"
 #include "DataInPrivate.h"
+#include "AutoCruiseControl.h"
 
 
 /* Go waste some memory */
@@ -23,7 +24,6 @@ static int AcceptDataGPSPosition(const char *adr, char *inData);
 static int AcceptDataGPSDirection(const char *adr, char *inData);
 static int AcceptDataGPSSpeed(const char *adr, char *inData);
 static int AcceptDataGPSTime(const char *adr, char *inData);
-
 
 void InitReadBussensors(void) {
 	
@@ -59,8 +59,9 @@ static void CopySensorData(char *dest, const char *src) {
 
 
 static int AcceptDataGPSPosition(const char *adr, char *inData) {
-	
 	CopySensorData(sGPSPos, inData);
+	load_nmeadata(sGPSPos);
+
 	return 0;
 	
 } /* AcceptDataGPSPosition */

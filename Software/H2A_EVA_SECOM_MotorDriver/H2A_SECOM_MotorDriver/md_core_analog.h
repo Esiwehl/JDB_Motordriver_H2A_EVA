@@ -23,10 +23,6 @@
 	DO_LC_RNG(rng);									\
 	filt += (((int32_t) (newData)) - (((int32_t) filt) >> 5) + (((int32_t) rng) >> 21)) >> 5; } while(0)
 
-//Rowan
-#define EARTH_RADIUS 6371e3
-#define DEG2RAD(x) ((x) * M_PI / 180.0)
-#define RAD2DEG(x) ((x) * 180.0 / M_PI)
 
 void InitCoreAnalog(void);
 void CalibrateChannel(FILE *fp);
@@ -38,5 +34,6 @@ uint32_t GetSessionCycleCount(void);
 void PrintCSV_H2A(FILE *fp);
 void PrintCSV_EVA(FILE *fp);
 void PrintResetHeader(FILE *fp);
+void SetTargetSpeedCC(uint8_t targetspeed);
 
 #endif /* MD_CORE_ANALOG_H_ */

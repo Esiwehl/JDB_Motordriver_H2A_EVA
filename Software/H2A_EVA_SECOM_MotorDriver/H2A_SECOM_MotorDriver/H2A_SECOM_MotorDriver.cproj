@@ -141,6 +141,12 @@
     </ToolchainSettings>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="AutoCruiseControl.c">
+      <SubType>compile</SubType>
+    </Compile>
+    <Compile Include="AutoCruiseControl.h">
+      <SubType>compile</SubType>
+    </Compile>
     <Compile Include="clksys_driver.c">
       <SubType>compile</SubType>
     </Compile>

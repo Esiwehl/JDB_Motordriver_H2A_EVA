@@ -37,6 +37,7 @@ SUBDIRS :=
 
 # Add inputs and outputs from these tool invocations to the build variables 
 C_SRCS +=  \
+../AutoCruiseControl.c \
 ../clksys_driver.c \
 ../DataInSlave.c \
 ../H2A_SECOM_MotorDriver.c \
@@ -55,6 +56,7 @@ ASM_SRCS +=
 
 
 OBJS +=  \
+AutoCruiseControl.o \
 clksys_driver.o \
 DataInSlave.o \
 H2A_SECOM_MotorDriver.o \
@@ -66,6 +68,7 @@ md_ticktimer.o \
 util.o
 
 OBJS_AS_ARGS +=  \
+AutoCruiseControl.o \
 clksys_driver.o \
 DataInSlave.o \
 H2A_SECOM_MotorDriver.o \
@@ -77,6 +80,7 @@ md_ticktimer.o \
 util.o
 
 C_DEPS +=  \
+AutoCruiseControl.d \
 clksys_driver.d \
 DataInSlave.d \
 H2A_SECOM_MotorDriver.d \
@@ -88,6 +92,7 @@ md_ticktimer.d \
 util.d
 
 C_DEPS_AS_ARGS +=  \
+AutoCruiseControl.d \
 clksys_driver.d \
 DataInSlave.d \
 H2A_SECOM_MotorDriver.d \
@@ -112,6 +117,8 @@ LINKER_SCRIPT_DEP+=
 
 
 # AVR32/GNU C Compiler
+
+
 
 
 

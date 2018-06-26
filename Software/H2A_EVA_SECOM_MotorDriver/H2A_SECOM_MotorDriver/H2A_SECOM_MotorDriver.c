@@ -27,9 +27,6 @@
 static void InitClocks(void);
 static void InitIO(void);
 
-
-
-
 #define PRINTCSV_LINELEN 150 /* Approximate line length of the PrintCSV() call. 
 								No point in generating a new line if there are not at least this many bytes free */
 
@@ -41,10 +38,11 @@ static void InitIO(void);
 
 #define ESC_TIMEOUT			(CYCLES_PER_SECOND)
 #define PRINT_ID_INTERVAL	((uint32_t)10*60*(CYCLES_PER_SECOND))
+#define PRINT_NMEA_INTERVAL	((uint32_t) CYCLES_PER_SECOND)
 
 int main(void)
 {
-	uint32_t prev = 0, prevIDPrint = 0, now;
+	uint32_t prev = 0, prevIDPrint = 0, prevNMEAupdate = 0, now;
 	uint8_t debugPrintstate = DEBUGPRINT_START, escTimeoutActive = 0;
 	static char slaveData[MAXCHARACTERSSENTENCE];
 	
@@ -97,6 +95,11 @@ int main(void)
 						PrintResetHeader(&gCtrl_IO);
 					}
 					else {
+						if(now - prevNMEAupdate >= PRINT_NMEA_INTERVAL) {
+							prevNMEAupdate += PRINT_NMEA_INTERVAL;
+							// NMEA doen
+							SetTargetSpeedCC(CCspeed());
+						}
 						TakeSnapshot();
 						ProcessIMU();
 						debugPrintstate = DEBUGPRINT_ANALOG;
@@ -104,6 +107,7 @@ int main(void)
 					break;
 				case DEBUGPRINT_ANALOG:
 					if(I_AM_H2A) {
+						//PrintCSV_TEST(&gCtrl_IO);
 						PrintCSV_H2A(&gCtrl_IO);
 					}
 					else {
@@ -124,12 +128,12 @@ int main(void)
 					debugPrintstate = DEBUGPRINT_START;
 			}
 		}
-		/* Green led to show if Vin = OK Note that this led is only available on rev 5 */
-		if(PORTC.IN & PIN3_bm){
-			PORTF.OUTCLR = PIN6_bm;
-		} else{
-			PORTF.OUTSET = PIN6_bm;
-		}
+		/* Green led to show if Vin = OK Note that this led is only available on rev 5 and 6 */
+// 		if(PORTC.IN & PIN3_bm){
+// 			PORTF.OUTCLR = PIN6_bm;
+// 		} else{
+// 			PORTF.OUTSET = PIN6_bm;
+// 		}
 
 		/* Handle the slave code */
 		if(CanRead_Comm485())
