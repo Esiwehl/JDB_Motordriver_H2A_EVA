@@ -159,6 +159,9 @@
     <Compile Include="md_core_analog.c">
       <SubType>compile</SubType>
     </Compile>
+    <Compile Include="md_core_analog.h">
+      <SubType>compile</SubType>
+    </Compile>
     <Compile Include="md_readbussensors.c">
       <SubType>compile</SubType>
     </Compile>
