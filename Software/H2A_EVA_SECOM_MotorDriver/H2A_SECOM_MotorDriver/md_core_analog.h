@@ -32,6 +32,7 @@ uint8_t IsSnapshotDone(void);
 uint32_t GetSessionCycleCount(void);
 void PrintCSV_H2A(FILE *fp);
 void PrintCSV_EVA(FILE *fp);
+void PrintEVA(FILE *fp);
 void PrintResetHeader(FILE *fp);
 
 #endif /* MD_CORE_ANALOG_H_ */

@@ -110,6 +110,7 @@ int main(void)
 						PrintCSV_H2A(&gCtrl_IO);
 					}
 					else {
+						//PrintEVA(&gCtrl_IO); //Debug Function For Checking Speed Eva
 						PrintCSV_EVA(&gCtrl_IO);
 					}
 					debugPrintstate = DEBUGPRINT_9DOF;

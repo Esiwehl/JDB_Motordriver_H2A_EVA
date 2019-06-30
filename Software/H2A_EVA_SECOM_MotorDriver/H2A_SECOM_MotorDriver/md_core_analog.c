@@ -25,13 +25,13 @@
 
 #define SPEEDSENSOR_MIDWAY_VAL		727 /* Calculated offset for a point halfway the expected sensor input extremes */
 #define SPEEDSENSOR_DEGLITCH		(CYCLES_PER_SECOND / 2000)	/* Number of valid over-threshold values that need to be seen before an edge is recognized */
-#define SPEEDSENSOR_MAX_INTERVAL	(CYCLES_PER_SECOND / 3)	/* Max time between edges before we assume we're standing still */
+#define SPEEDSENSOR_MAX_INTERVAL	(CYCLES_PER_SECOND / 2)	/* Max time between edges before we assume we're standing still */
 #define SPEEDSENSOR_MIN_SPEED		1.0f /* Below this speed in km/h we report to be standing still */
 
 /* Wheel constants */
 
 #define H2A_WHEEL_METER_PER_ROT		1.488f
-#define EVA_WHEEL_METER_PER_ROT		1.753f
+#define EVA_WHEEL_METER_PER_ROT		1.790f
 #define H2A_WHEEL_PULSE_PER_ROT		24
 #define EVA_WHEEL_PULSE_PER_ROT		15
 #define WHEEL_MS_TO_KMH				3.6f
@@ -882,7 +882,9 @@ void PrintCSV_H2A(FILE *fp) {
 	
 } /* PrintCSV_H2A */
 
-
+//void PrintEVA(FILE *fp) {
+//	fprintf(fp, "%.3f   %.3f\r\n", GetProcessedSpeed(sSensorDataSnapshot.speedSensorPulseInterval, EVA_WHEEL_METER_PER_PULSE),(float) sSensorDataSnapshot.speedSensorLastValidInterval / CYCLES_PER_SECOND);	
+//}
 void PrintCSV_EVA(FILE *fp) {
 	/* Assume the calling code has already initiated a snapshot */	
 	while(!(IsSnapshotDone())) ; /* Wait for the snapshot to be taken */
